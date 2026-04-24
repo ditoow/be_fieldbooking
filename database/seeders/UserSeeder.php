@@ -12,29 +12,31 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        $adminRole = \App\Models\Role::where('name', 'admin')->first();
-        $mahasiswaRole = \App\Models\Role::where('name', 'mahasiswa')->first();
+        $admin = \App\Models\User::create([
+            'name' => 'pulung',
+            'email' => 'admin@admin.com',
+            'password' => \Illuminate\Support\Facades\Hash::make('password'),
+            'phone' => '081234567890',
+            'nim' => null,
+        ]);
+        $admin->assignRole('admin');
 
-        if ($adminRole) {
-            \App\Models\User::create([
-                'role_id' => $adminRole->id,
-                'name' => 'Admin Utama',
-                'email' => 'admin@admin.com',
-                'password' => \Illuminate\Support\Facades\Hash::make('password'),
-                'phone' => '081234567890',
-                'nim' => null,
-            ]);
-        }
+        $umum = \App\Models\User::create([
+            'name' => 'fajar',
+            'email' => 'umum@umum.com',
+            'password' => \Illuminate\Support\Facades\Hash::make('umum'),
+            'phone' => '081234567891',
+            'nim' => null,
+        ]);
+        $umum->assignRole('umum');
 
-        if ($mahasiswaRole) {
-            \App\Models\User::create([
-                'role_id' => $mahasiswaRole->id,
-                'name' => 'Mahasiswa Test',
-                'email' => 'mahasiswa@student.com',
-                'password' => \Illuminate\Support\Facades\Hash::make('password'),
-                'phone' => '081298765432',
-                'nim' => 'A11.2023.12345',
-            ]);
-        }
+        $mahasiswa = \App\Models\User::create([
+            'name' => 'aprilian',
+            'email' => 'mhs@mhs.com',
+            'password' => \Illuminate\Support\Facades\Hash::make('mhs'),
+            'phone' => '081298765432',
+            'nim' => 'A11.2023.01042',
+        ]);
+        $mahasiswa->assignRole('mahasiswa');
     }
 }

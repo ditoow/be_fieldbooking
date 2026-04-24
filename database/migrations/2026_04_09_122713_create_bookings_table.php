@@ -12,16 +12,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('bookings', function (Blueprint $table) {
-            $table->uuid('id')->primary();
-            $table->foreignUuid('user_id')->constrained('users');
-            $table->foreignId('schedule_id')->constrained('schedules');
+            $table->id('id')->primary();
+            $table->foreignUuid('user_id')->constrained('users')->cascadeOnDelete();
+            $table->foreignId('schedule_id')->constrained('schedules')->cascadeOnDelete();
             $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
             $table->timestamp('berakhir_pada');
             //mahasiswa
             $table->string('file_url')->nullable();
             $table->boolean("is_hadir")->default(false)->nullable();
             $table->timestamp("hadir_pada")->nullable();
-
             $table->timestamps();
     
         });

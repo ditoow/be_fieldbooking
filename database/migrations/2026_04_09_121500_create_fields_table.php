@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('nama_lapangan');
             $table->string('deskripsi');
             $table->string('kategori_lapangan');
-            $table->enum('status', ['available', 'maintenance'])->default('available');
+            $table->enum('status', ['tersedia', 'pemeliharaan'])->default('tersedia');
             $table->timestamps();
         });
     }
