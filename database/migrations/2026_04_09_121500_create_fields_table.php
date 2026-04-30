@@ -13,10 +13,10 @@ return new class extends Migration
     {
         Schema::create('fields', function (Blueprint $table) {
             $table->id();
-            $table->string('nama_lapangan');
-            $table->string('deskripsi');
-            $table->string('kategori_lapangan');
-            $table->enum('status', ['tersedia', 'pemeliharaan'])->default('tersedia');
+            $table->string('name');
+            $table->string('description');
+            $table->string('category');
+            $table->enum('status', ['available', 'maintenance'])->default('available');
             $table->timestamps();
         });
     }

@@ -14,10 +14,10 @@ class FieldSeeder extends Seeder
     public function run(): void
     {
         Field::create([
-            'nama_lapangan' => 'Lapangan Futsal A',
-            'deskripsi' => 'Lapangan rumput sintetis standar internasional dengan pencahayaan spektakuler.',
-            'kategori_lapangan' => 'Futsal',
-            'status' => 'tersedia',
+            'name' => 'Lapangan Futsal A',
+            'description' => 'Lapangan rumput sintetis standar internasional dengan pencahayaan spektakuler.',
+            'category' => 'Futsal',
+            'status' => 'available',
         ]);
     }
 }

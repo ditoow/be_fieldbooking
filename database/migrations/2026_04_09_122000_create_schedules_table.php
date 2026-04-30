@@ -13,11 +13,11 @@ return new class extends Migration
     {
         Schema::create('schedules', function (Blueprint $table) {
             $table->id('id')->primary();
-            $table->foreignId('lapangan_id')->constrained('fields');
-            $table->date('hari');
-            $table->time('jam_mulai');
-            $table->time('jam_selesai');
-            $table->integer('harga')->default(0);
+            $table->foreignId('field_id')->constrained('fields');
+            $table->date('date');
+            $table->time('start_time');
+            $table->time('end_time');
+            $table->integer('price')->default(0);
             $table->enum('status', ['available', 'booked'])->default('available');
             $table->timestamps();
 

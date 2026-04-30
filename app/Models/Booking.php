@@ -10,10 +10,11 @@ class Booking extends Model
     use HasUuids;
     protected $fillable = [
         'status',
-        'file-url',
-        'is_hadir',
-        'hadir_pada',
-        'berakhir_pada'
+        'booking_type',
+        'file_url',
+        'is_attended',
+        'attended_at',
+        'expires_at'
     ];
 
     public function schedule(){

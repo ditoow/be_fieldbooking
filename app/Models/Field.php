@@ -9,14 +9,14 @@ class Field extends Model
     protected $table = 'fields';
 
     protected $fillable = [
-       'nama_lapangan',
-       'deskripsi',
-       'kategori_lapangan',
+       'name',
+       'description',
+       'category',
        'status',
     ];
 
     public function schedules()
     {
-        return $this->hasMany(Schedule::class, 'lapangan_id');
+        return $this->hasMany(Schedule::class, 'field_id');
     }
 }

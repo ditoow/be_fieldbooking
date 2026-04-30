@@ -17,7 +17,7 @@ class UserSeeder extends Seeder
             'email' => 'admin@admin.com',
             'password' => \Illuminate\Support\Facades\Hash::make('password'),
             'phone' => '081234567890',
-            'nim' => null,
+            'student_id' => null,
         ]);
         $admin->assignRole('admin');
 
@@ -26,7 +26,7 @@ class UserSeeder extends Seeder
             'email' => 'umum@umum.com',
             'password' => \Illuminate\Support\Facades\Hash::make('umum'),
             'phone' => '081234567891',
-            'nim' => null,
+            'student_id' => null,
         ]);
         $umum->assignRole('umum');
 
@@ -35,7 +35,7 @@ class UserSeeder extends Seeder
             'email' => 'mhs@mhs.com',
             'password' => \Illuminate\Support\Facades\Hash::make('mhs'),
             'phone' => '081298765432',
-            'nim' => 'A11.2023.01042',
+            'student_id' => 'A11.2023.01042',
         ]);
         $mahasiswa->assignRole('mahasiswa');
     }

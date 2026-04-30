@@ -16,11 +16,12 @@ return new class extends Migration
             $table->foreignUuid('user_id')->constrained('users')->cascadeOnDelete();
             $table->foreignId('schedule_id')->constrained('schedules')->cascadeOnDelete();
             $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
-            $table->timestamp('berakhir_pada');
+            $table->enum('booking_type', ['paid', 'requirement']);
+            $table->timestamp('expires_at');
             //mahasiswa
             $table->string('file_url')->nullable();
-            $table->boolean("is_hadir")->default(false)->nullable();
-            $table->timestamp("hadir_pada")->nullable();
+            $table->boolean("is_attended")->default(false)->nullable();
+            $table->timestamp("attended_at")->nullable();
             $table->timestamps();
     
         });
