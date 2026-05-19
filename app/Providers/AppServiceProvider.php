@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Models\Field;
+use App\Observers\FieldObserver;
 use Dedoc\Scramble\Scramble;
 use Dedoc\Scramble\Support\Generator\OpenApi;
 use Dedoc\Scramble\Support\Generator\SecurityScheme;
@@ -22,6 +24,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Field::observe(FieldObserver::class);
+
         Scramble::afterOpenApiGenerated(function (OpenApi $openApi) {
         $openApi->secure(
             SecurityScheme::http('bearer', 'JWT')
