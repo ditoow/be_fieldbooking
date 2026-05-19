@@ -18,6 +18,8 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             UserSeeder::class,
             FieldSeeder::class,
+            ScheduleSeeder::class,
+            BookingSeeder::class,
         ]);
     }
 }
