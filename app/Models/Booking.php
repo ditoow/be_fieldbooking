@@ -8,19 +8,42 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 class Booking extends Model
 {
     use HasUuids;
+
     protected $fillable = [
+        'user_id',
+        'schedule_id',
         'status',
         'booking_type',
         'file_url',
         'is_attended',
         'attended_at',
-        'expires_at'
+        'expires_at',
     ];
 
-    public function schedule(){
+    protected $casts = [
+        'is_attended' => 'boolean',
+        'attended_at' => 'datetime',
+        'expires_at' => 'datetime',
+    ];
+
+    public function schedule()
+    {
         return $this->belongsTo(Schedule::class, 'schedule_id');
     }
-    public function user(){
+
+    public function user()
+    {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function scopePending($query)
+    {
+        return $query->where('status', 'pending');
+    }
+
+    public function scopeExpired($query)
+    {
+        return $query->where('status', 'pending')
+            ->where('expires_at', '<', now());
     }
 }
