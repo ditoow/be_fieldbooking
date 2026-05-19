@@ -3,12 +3,9 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class Booking extends Model
 {
-    use HasUuids;
-
     protected $fillable = [
         'user_id',
         'schedule_id',
@@ -34,6 +31,11 @@ class Booking extends Model
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function payment()
+    {
+        return $this->hasOne(Payment::class, 'booking_id');
     }
 
     public function scopePending($query)

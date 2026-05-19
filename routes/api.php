@@ -7,6 +7,7 @@ use App\Http\Controllers\FieldController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\AdminBookingController;
+use App\Http\Controllers\PaymentController;
 use Illuminate\Support\Facades\Auth;
 
 // Route::get('/user', function (Request $request) {
@@ -21,6 +22,9 @@ Route::post('login', [AuthController::class, 'login']);
 Route::get('/fields', [FieldController::class, 'index']);
 Route::get('/schedules', [ScheduleController::class, 'index']);
 
+// Midtrans callback - public (no auth)
+Route::post('/payments/callback', [PaymentController::class, 'callback']);
+
 Route::middleware('auth:api')->group(function () {
 
     // Field
@@ -32,6 +36,8 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/bookings', [BookingController::class, 'index']);
     Route::get('/bookings/{id}', [BookingController::class, 'show']);
     Route::post('/bookings/{id}/upload', [BookingController::class, 'upload']);
+    Route::post('/bookings/{id}/pay', [PaymentController::class, 'initiate']);
+    Route::get('/bookings/{id}/payment', [PaymentController::class, 'status']);
 
     // Booking - Admin
     Route::get('/admin/bookings', [AdminBookingController::class, 'index']);

@@ -10,6 +10,7 @@
         "dedoc/scramble": "^0.13.20",
         "laravel/framework": "^13.0",
         "laravel/tinker": "^3.0",
+        "midtrans/midtrans-php": "^2.6",
         "spatie/laravel-permission": "^7.3",
         "tymon/jwt-auth": "^2.3"
     },

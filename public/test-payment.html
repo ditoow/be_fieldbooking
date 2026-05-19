@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Field Booking Test - Umum</title>
+        <script
+            src="https://app.sandbox.midtrans.com/snap/snap.js"
+            data-client-key="Mid-client-Kbzv_6WRXqQIk8x8"
+        ></script>
+        <style>
+            * {
+                box-sizing: border-box;
+                font-family: Arial, sans-serif;
+            }
+            body {
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 20px;
+                background: #f5f5f5;
+            }
+            .card {
+                background: white;
+                padding: 20px;
+                margin: 10px 0;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+            .hidden {
+                display: none;
+            }
+            input,
+            select,
+            button {
+                width: 100%;
+                padding: 10px;
+                margin: 5px 0;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+            }
+            button {
+                background: #4472c4;
+                color: white;
+                border: none;
+                cursor: pointer;
+                padding: 12px;
+            }
+            button:hover {
+                background: #3658a8;
+            }
+            button:disabled {
+                background: #ccc;
+                cursor: not-allowed;
+            }
+            .field-item,
+            .schedule-item {
+                padding: 10px;
+                border: 1px solid #ddd;
+                margin: 5px 0;
+                border-radius: 4px;
+                cursor: pointer;
+            }
+            .field-item:hover,
+            .schedule-item:hover {
+                background: #f0f0f0;
+            }
+            .field-item.selected,
+            .schedule-item.selected {
+                background: #4472c4;
+                color: white;
+            }
+            .schedule-grid {
+                display: grid;
+                grid-template-columns: repeat(6, 1fr);
+                gap: 5px;
+            }
+            .schedule-item {
+                text-align: center;
+                padding: 8px;
+                font-size: 12px;
+            }
+            .date-nav {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .error {
+                color: red;
+                padding: 10px;
+                background: #fee;
+                border-radius: 4px;
+            }
+            .success {
+                color: green;
+                padding: 10px;
+                background: #efe;
+                border-radius: 4px;
+            }
+            h2 {
+                color: #333;
+                margin-top: 0;
+            }
+            .booking-detail {
+                background: #f9f9f9;
+                padding: 15px;
+                border-radius: 4px;
+                margin: 10px 0;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- LOGIN -->
+        <div id="loginSection" class="card">
+            <h2>Login (User Umum)</h2>
+            <input
+                type="email"
+                id="email"
+                value="umum@umum.com"
+                placeholder="Email"
+            />
+            <input
+                type="password"
+                id="password"
+                value="umum"
+                placeholder="Password"
+            />
+            <button onclick="login()">Login</button>
+            <div id="loginError" class="error hidden"></div>
+        </div>
+
+        <!-- MAIN -->
+        <div id="mainSection" class="card hidden">
+            <h2>Field Booking - Umum</h2>
+            <button
+                onclick="logout()"
+                style="
+                    background: #666;
+                    width: auto;
+                    padding: 5px 15px;
+                    float: right;
+                "
+            >
+                Logout
+            </button>
+            <div style="clear: both"></div>
+
+            <h3>1. Pilih Lapangan</h3>
+            <div id="fieldsList"></div>
+        </div>
+
+        <!-- SCHEDULE -->
+        <div id="scheduleSection" class="card hidden">
+            <h2>Pilih Jadwal</h2>
+            <button
+                onclick="backToFields()"
+                style="background: #666; width: auto; padding: 5px 15px"
+            >
+                ← Kembali
+            </button>
+            <div id="selectedField"></div>
+
+            <h3>2. Pilih Tanggal</h3>
+            <div class="date-nav">
+                <button
+                    onclick="changeWeek(-1)"
+                    style="width: auto; padding: 5px 15px"
+                >
+                    ← Prev
+                </button>
+                <span id="dateRange"></span>
+                <button
+                    onclick="changeWeek(1)"
+                    style="width: auto; padding: 5px 15px"
+                >
+                    Next →
+                </button>
+            </div>
+
+            <h3>3. Pilih Jam</h3>
+            <div id="schedulesGrid" class="schedule-grid"></div>
+
+            <button id="bookBtn" onclick="createBooking()" disabled>
+                Booking Sekarang
+            </button>
+            <div id="bookingError" class="error hidden"></div>
+        </div>
+
+        <!-- PAYMENT -->
+        <div id="paymentSection" class="card hidden">
+            <h2>Pembayaran</h2>
+            <div id="bookingSummary" class="booking-detail"></div>
+            <button id="payBtn" onclick="initiatePayment()">
+                Bayar Sekarang
+            </button>
+            <button
+                id="checkPaymentBtn"
+                onclick="checkPayment()"
+                style="background: #28a745"
+            >
+                Cek Status
+            </button>
+            <div id="paymentMessage"></div>
+        </div>
+
+        <script>
+            const API_URL = "http://localhost:8000/api";
+            let token = localStorage.getItem("token");
+            let selectedField = null;
+            let selectedSchedule = null;
+            let currentBooking = null;
+            let currentWeekOffset = 0;
+
+            // Check if logged in
+            if (token) {
+                showMainSection();
+            }
+
+            async function login() {
+                const email = document.getElementById("email").value;
+                const password = document.getElementById("password").value;
+
+                try {
+                    const res = await fetch(`${API_URL}/login`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ email, password }),
+                    });
+                    const data = await res.json();
+
+                    if (data.token) {
+                        token = data.token;
+                        localStorage.setItem("token", token);
+                        showMainSection();
+                    } else {
+                        document.getElementById("loginError").textContent =
+                            data.message || "Login failed";
+                        document
+                            .getElementById("loginError")
+                            .classList.remove("hidden");
+                    }
+                } catch (e) {
+                    document.getElementById("loginError").textContent =
+                        "Error: " + e.message;
+                    document
+                        .getElementById("loginError")
+                        .classList.remove("hidden");
+                }
+            }
+
+            function logout() {
+                token = null;
+                localStorage.remove("token");
+                document
+                    .getElementById("loginSection")
+                    .classList.remove("hidden");
+                document.getElementById("mainSection").classList.add("hidden");
+            }
+
+            function showMainSection() {
+                document.getElementById("loginSection").classList.add("hidden");
+                document
+                    .getElementById("mainSection")
+                    .classList.remove("hidden");
+                loadFields();
+            }
+
+            async function loadFields() {
+                try {
+                    const res = await fetch(`${API_URL}/fields`);
+                    const data = await res.json();
+                    const container = document.getElementById("fieldsList");
+                    container.innerHTML = "";
+
+                    data.data.forEach((field) => {
+                        const div = document.createElement("div");
+                        div.className = "field-item";
+                        div.textContent = `${field.name} - ${field.category}`;
+                        div.onclick = () => selectField(field);
+                        container.appendChild(div);
+                    });
+                } catch (e) {
+                    console.error("Error loading fields:", e);
+                }
+            }
+
+            function selectField(field) {
+                selectedField = field;
+                document
+                    .querySelectorAll(".field-item")
+                    .forEach((el) => el.classList.remove("selected"));
+                event.target.classList.add("selected");
+                showScheduleSection();
+            }
+
+            function showScheduleSection() {
+                document.getElementById("mainSection").classList.add("hidden");
+                document
+                    .getElementById("scheduleSection")
+                    .classList.remove("hidden");
+                document.getElementById("selectedField").textContent =
+                    `Lapangan: ${selectedField.name}`;
+                loadSchedules();
+            }
+
+            function backToFields() {
+                document
+                    .getElementById("scheduleSection")
+                    .classList.add("hidden");
+                document
+                    .getElementById("mainSection")
+                    .classList.remove("hidden");
+                selectedField = null;
+                selectedSchedule = null;
+            }
+
+            async function loadSchedules() {
+                const startDate = getStartOfWeek();
+                const endDate = getEndOfWeek();
+
+                document.getElementById("dateRange").textContent =
+                    `${formatDate(startDate)} - ${formatDate(endDate)}`;
+
+                try {
+                    const res = await fetch(
+                        `${API_URL}/schedules?field_id=${selectedField.id}&start_date=${startDate}&end_date=${endDate}`,
+                    );
+                    const data = await res.json();
+
+                    const container = document.getElementById("schedulesGrid");
+                    container.innerHTML = "";
+
+                    data.data.forEach((day) => {
+                        day.slots.forEach((slot) => {
+                            const div = document.createElement("div");
+                            div.className = "schedule-item";
+                            if (slot.status === "booked") {
+                                div.style.background = "#ccc";
+                                div.textContent = `${slot.start_time}\nBOOKED`;
+                            } else {
+                                div.textContent = `${slot.start_time}\n${formatCurrency(slot.price)}`;
+                                div.onclick = () => selectSlot(slot, day.date);
+                                div.dataset.slotId = slot.id;
+                                div.dataset.date = day.date;
+                                div.dataset.price = slot.price;
+                            }
+                            container.appendChild(div);
+                        });
+                    });
+                } catch (e) {
+                    console.error("Error loading schedules:", e);
+                }
+            }
+
+            function selectSlot(slot, date) {
+                document
+                    .querySelectorAll(".schedule-item")
+                    .forEach((el) => el.classList.remove("selected"));
+                event.target.classList.add("selected");
+
+                selectedSchedule = {
+                    id: slot.id,
+                    date: date,
+                    startTime: slot.start_time,
+                    price: slot.price,
+                };
+
+                document.getElementById("bookBtn").disabled = false;
+            }
+
+            function changeWeek(offset) {
+                currentWeekOffset += offset;
+                if (currentWeekOffset < 0) currentWeekOffset = 0;
+                loadSchedules();
+            }
+
+            async function createBooking() {
+                if (!selectedSchedule) return;
+
+                const btn = document.getElementById("bookBtn");
+                btn.disabled = true;
+                btn.textContent = "Loading...";
+
+                try {
+                    const res = await fetch(`${API_URL}/bookings`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({
+                            schedule_id: selectedSchedule.id,
+                        }),
+                    });
+                    const data = await res.json();
+
+                    if (data.data) {
+                        currentBooking = data.data;
+                        showPaymentSection();
+                    } else {
+                        document.getElementById("bookingError").textContent =
+                            data.message || "Booking failed";
+                        document
+                            .getElementById("bookingError")
+                            .classList.remove("hidden");
+                    }
+                } catch (e) {
+                    document.getElementById("bookingError").textContent =
+                        "Error: " + e.message;
+                    document
+                        .getElementById("bookingError")
+                        .classList.remove("hidden");
+                }
+
+                btn.disabled = false;
+                btn.textContent = "Booking Sekarang";
+            }
+
+            function showPaymentSection() {
+                document
+                    .getElementById("scheduleSection")
+                    .classList.add("hidden");
+                document
+                    .getElementById("paymentSection")
+                    .classList.remove("hidden");
+
+                document.getElementById("bookingSummary").innerHTML = `
+                <strong>Booking Berhasil!</strong><br>
+                ID: ${currentBooking.id}<br>
+                Status: ${currentBooking.status}<br>
+                Type: ${currentBooking.booking_type}<br>
+                Schedule: ${currentBooking.schedule?.date} ${currentBooking.schedule?.start_time}<br>
+                Harga: ${formatCurrency(currentBooking.schedule?.price)}
+            `;
+            }
+
+            async function initiatePayment() {
+                const btn = document.getElementById("payBtn");
+                btn.disabled = true;
+                btn.textContent = "Loading...";
+
+                try {
+                    const res = await fetch(
+                        `${API_URL}/bookings/${currentBooking.id}/pay`,
+                        {
+                            method: "POST",
+                            headers: { Authorization: `Bearer ${token}` },
+                        },
+                    );
+                    const data = await res.json();
+
+                    if (data.snap_token) {
+                        // Open Midtrans Snap
+                        snap.pay(data.snap_token, {
+                            onSuccess: function (result) {
+                                document.getElementById(
+                                    "paymentMessage",
+                                ).innerHTML =
+                                    '<div class="success">Payment SUCCESS! Transaction ID: ' +
+                                    (result.transaction_id || "N/A") +
+                                    "</div>";
+                            },
+                            onPending: function (result) {
+                                document.getElementById(
+                                    "paymentMessage",
+                                ).innerHTML =
+                                    '<div class="success">Payment PENDING. Order ID: ' +
+                                    result.order_id +
+                                    "</div>";
+                            },
+                            onError: function (result) {
+                                document.getElementById(
+                                    "paymentMessage",
+                                ).innerHTML =
+                                    '<div class="error">Payment FAILED: ' +
+                                    result.status_message +
+                                    "</div>";
+                            },
+                            onClose: function () {
+                                console.log("Midtrans popup closed");
+                            },
+                        });
+                    } else {
+                        document.getElementById("paymentMessage").innerHTML =
+                            '<div class="error">Error: ' +
+                            (data.message || "No snap token") +
+                            "</div>";
+                    }
+                } catch (e) {
+                    document.getElementById("paymentMessage").innerHTML =
+                        '<div class="error">Error: ' + e.message + "</div>";
+                }
+
+                btn.disabled = false;
+                btn.textContent = "Bayar Sekarang";
+            }
+
+            async function checkPayment() {
+                try {
+                    const res = await fetch(
+                        `${API_URL}/bookings/${currentBooking.id}/payment`,
+                        {
+                            headers: { Authorization: `Bearer ${token}` },
+                        },
+                    );
+                    const data = await res.json();
+
+                    if (data.payment) {
+                        document.getElementById("paymentMessage").innerHTML = `
+                        <div class="booking-detail">
+                            <strong>Payment Status:</strong><br>
+                            Order ID: ${data.payment.order_id}<br>
+                            Status: ${data.payment.status}<br>
+                            Type: ${data.payment.payment_type || "-"}<br>
+                            Transaction ID: ${data.payment.transaction_id || "-"}<br>
+                            Expires At: ${data.payment.expires_at}
+                        </div>
+                    `;
+                    } else {
+                        document.getElementById("paymentMessage").innerHTML =
+                            '<div class="error">No payment found</div>';
+                    }
+                } catch (e) {
+                    document.getElementById("paymentMessage").innerHTML =
+                        '<div class="error">Error: ' + e.message + "</div>";
+                }
+            }
+
+            // Helper functions
+            function getStartOfWeek() {
+                const date = new Date();
+                date.setDate(date.getDate() + currentWeekOffset * 7);
+                return date.toISOString().split("T")[0];
+            }
+
+            function getEndOfWeek() {
+                const date = new Date();
+                date.setDate(date.getDate() + (currentWeekOffset + 1) * 7 - 1);
+                return date.toISOString().split("T")[0];
+            }
+
+            function formatDate(dateStr) {
+                const date = new Date(dateStr);
+                return date.toLocaleDateString("id-ID", {
+                    month: "short",
+                    day: "numeric",
+                });
+            }
+
+            function formatCurrency(amount) {
+                return "Rp " + (amount || 0).toLocaleString("id-ID");
+            }
+        </script>
+    </body>
+</html>

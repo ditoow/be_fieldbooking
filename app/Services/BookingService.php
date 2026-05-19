@@ -28,14 +28,10 @@ class BookingService
             $booking = Booking::create([
                 'user_id' => $user->id,
                 'schedule_id' => $schedule->id,
-                'status' => $isUmum ? 'approved' : 'pending',
+                'status' => 'pending',
                 'booking_type' => $isUmum ? 'paid' : 'requirement',
-                'expires_at' => $isMahasiswa ? now()->addHours(2) : null,
+                'expires_at' => $isMahasiswa ? now()->addHours(2) : now()->addMinutes(10),
             ]);
-
-            if ($isUmum) {
-                $schedule->update(['status' => 'booked']);
-            }
 
             return $booking;
         });

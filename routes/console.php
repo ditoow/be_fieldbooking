@@ -10,3 +10,4 @@ Artisan::command('inspire', function () {
 
 Schedule::command('schedules:generate')->dailyAt('00:05');
 Schedule::command('bookings:expire')->everyMinute();
+Schedule::command('payments:expire')->everyMinute();
