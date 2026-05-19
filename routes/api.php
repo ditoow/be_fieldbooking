@@ -19,6 +19,7 @@ Route::post('login', [AuthController::class, 'login']);
 
 
 Route::get('/fields', [FieldController::class, 'index']);
+Route::get('/schedules', [ScheduleController::class, 'index']);
 
 Route::middleware('auth:api')->group(function () {
 

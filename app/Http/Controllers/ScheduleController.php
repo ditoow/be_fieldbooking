@@ -2,42 +2,46 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Resources\ScheduleResource;
-use App\Services\ScheduleService;
-use App\Models\Schedule; // Jangan lupa import modelnya
+use App\Models\Schedule;
 use Illuminate\Http\Request;
 
 class ScheduleController extends Controller
 {
-    protected $scheduleService;
-
-    public function __construct(ScheduleService $scheduleService)
+    public function index(Request $request)
     {
-        $this->scheduleService = $scheduleService;
-    }
-
-    public function store(Request $request){
-        
-        $validatedData = $request->validate([
+        $request->validate([
             'field_id' => 'required|exists:fields,id',
-            'date' => 'required|date',
-            'start_time' => 'required|date_format:H:i',  
-            'end_time' => 'required|date_format:H:i',   
-            'price' => 'required|numeric',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
         ]);
 
+        $fieldId = $request->field_id;
+        $startDate = $request->start_date;
+        $endDate = $request->end_date;
 
-        $schedules = $this->scheduleService->createBulkSchedule($validatedData);
-        return ScheduleResource::collection($schedules);
-    }
+        $schedules = Schedule::where('field_id', $fieldId)
+            ->whereBetween('date', [$startDate, $endDate])
+            ->orderBy('date')
+            ->orderBy('start_time')
+            ->get()
+            ->groupBy('date');
 
-    public function destroy(Schedule $schedule) 
-    {
-    
-        $this->scheduleService->deleteSchedule($schedule); 
+        $result = [];
+        foreach ($schedules as $date => $slots) {
+            $result[] = [
+                'date' => $date,
+                'slots' => $slots->map(function ($slot) {
+                    return [
+                        'id' => $slot->id,
+                        'start_time' => $slot->start_time,
+                        'end_time' => $slot->end_time,
+                        'price' => $slot->price,
+                        'status' => $slot->status,
+                    ];
+                }),
+            ];
+        }
 
-        return response()->json([
-            'message' => 'Jadwal berhasil dihapus'
-        ]);
+        return response()->json(['data' => $result]);
     }
 }

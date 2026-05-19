@@ -16,11 +16,11 @@ class FieldResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'nama_lapangan' => $this->name,
-            'deskripsi' => $this->description,
-            'kategori' => $this->category,
+            'name' => $this->name,
+            'description' => $this->description,
+            'category' => $this->category,
             'status' => $this->status,
-            'jadwal' => ScheduleResource::collection($this->whenLoaded('schedules')),
+            'schedules' => ScheduleResource::collection($this->whenLoaded('schedules')),
         ];
 
     }

@@ -37,10 +37,11 @@ class BookingController extends Controller
         }
     }
 
-    public function index()
+    public function index(Request $request)
     {
         $user = Auth::guard('api')->user();
-        $bookings = $this->bookingService->getUserBookings($user);
+        $filters = $request->only(['status']);
+        $bookings = $this->bookingService->getUserBookings($user, $filters);
 
         return BookingResource::collection($bookings);
     }

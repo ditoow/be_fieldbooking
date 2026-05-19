@@ -41,12 +41,16 @@ class BookingService
         });
     }
 
-    public function getUserBookings(User $user)
+    public function getUserBookings(User $user, $filters = [])
     {
-        return Booking::with(['schedule.field', 'user'])
-            ->where('user_id', $user->id)
-            ->orderBy('created_at', 'desc')
-            ->get();
+        $query = Booking::with(['schedule.field', 'user'])
+            ->where('user_id', $user->id);
+
+        if (isset($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        return $query->orderBy('created_at', 'desc')->get();
     }
 
     public function getBookingById($bookingId, User $user)

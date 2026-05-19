@@ -17,10 +17,10 @@ class ScheduleResource extends JsonResource
         return [
             'id' => $this->id,
             'field_id' => $this->field_id,
-            'tanggal' => $this->date,
-            'jam_mulai' => $this->start_time,
-            'jam_selesai' => $this->end_time,
-            'harga' => $this->price,
+            'date' => $this->date,
+            'start_time' => $this->start_time,
+            'end_time' => $this->end_time,
+            'price' => $this->price,
             'status' => $this->status,
         ];
     }

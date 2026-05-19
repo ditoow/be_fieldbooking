@@ -18,7 +18,6 @@ return new class extends Migration
             $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
             $table->enum('booking_type', ['paid', 'requirement']);
             $table->timestamp('expires_at');
-            //mahasiswa
             $table->string('file_url')->nullable();
             $table->boolean("is_attended")->default(false)->nullable();
             $table->timestamp("attended_at")->nullable();
