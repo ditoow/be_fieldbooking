@@ -2,13 +2,46 @@
 
 namespace App\Services;
 
+use App\Models\Field;
 use App\Models\Schedule;
 use Carbon\Carbon;
 
 class ScheduleService
 {
-    public function createBulkSchedule($data)
+    public function generateSchedulesForField(Field $field, int $days = 30)
     {
+        for ($dayOffset = 0; $dayOffset < $days; $dayOffset++) {
+            $date = now()->addDays($dayOffset)->format('Y-m-d');
+
+            for ($hour = 6; $hour < 24; $hour++) {
+                $startTime = sprintf('%02d:00', $hour);
+
+                // Cek apakah jadwal sudah ada untuk menghindari duplikat
+                $exists = Schedule::where('field_id', $field->id)
+                    ->where('date', $date)
+                    ->where('start_time', $startTime)
+                    ->exists();
+
+                if ($exists) {
+                    continue;
+                }
+
+                $price = ($hour >= 16) ? 50000 : 40000;
+
+                Schedule::create([
+                    'field_id' => $field->id,
+                    'date' => $date,
+                    'start_time' => $startTime,
+                    'end_time' => sprintf('%02d:00', $hour + 1),
+                    'price' => $price,
+                    'status' => 'available',
+                ]);
+            }
+        }
+    }
+
+    public function createBulkSchedule($data){
+        
         $fieldId = $data['field_id'];
         $date = Carbon::parse($data['date'])->format('Y-m-d');
         $price = $data['price'];
