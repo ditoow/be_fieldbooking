@@ -82,4 +82,42 @@ class BookingController extends Controller
             ], 422);
         }
     }
+
+    public function reschedule(Request $request, $id)
+    {
+        $request->validate([
+            'schedule_id' => 'required|exists:schedules,id',
+        ]);
+
+        $user = Auth::guard('api')->user();
+
+        try {
+            $booking = $this->bookingService->rescheduleBooking($user, $id, $request->schedule_id);
+            return response()->json([
+                'message' => 'Jadwal pemesanan berhasil dipindahkan!',
+                'data' => new BookingResource($booking->load(['schedule.field', 'user'])),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    public function cancel($id)
+    {
+        $user = Auth::guard('api')->user();
+
+        try {
+            $booking = $this->bookingService->cancelBooking($user, $id);
+            return response()->json([
+                'message' => 'Pemesanan berhasil dibatalkan!',
+                'data' => new BookingResource($booking->load(['schedule.field', 'user'])),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
 }

@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Spatie\Permission\Traits\HasRoles;
 use Tymon\JWTAuth\Contracts\JWTSubject;
 
-#[Fillable(['name', 'email', 'password'])]
+#[Fillable(['name', 'email', 'password', 'status'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements JWTSubject
 {
@@ -39,6 +39,7 @@ class User extends Authenticatable implements JWTSubject
         'password',
         'phone',
         'student_id',
+        'status',
 
     ];
 
@@ -59,6 +60,11 @@ class User extends Authenticatable implements JWTSubject
     public function bookings()
     {
         return $this->hasMany(Booking::class);
+    }
+
+    public function isSuspended(): bool
+    {
+        return $this->status === 'suspended';
     }
 }
 

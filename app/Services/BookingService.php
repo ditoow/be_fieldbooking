@@ -5,12 +5,17 @@ namespace App\Services;
 use App\Models\Booking;
 use App\Models\Schedule;
 use App\Models\User;
+use App\Models\Reschedule;
 use Illuminate\Support\Facades\DB;
 
 class BookingService
 {
     public function createBooking(User $user, $scheduleId)
     {
+        if ($user->isSuspended()) {
+            throw new \Exception('Akun Anda ditangguhkan sementara dari pembuatan booking baru.');
+        }
+
         $schedule = Schedule::findOrFail($scheduleId);
 
         if ($schedule->status === 'booked') {
@@ -149,5 +154,77 @@ class BookingService
         return Booking::with(['schedule.field', 'user'])
             ->expired()
             ->get();
+    }
+
+    public function rescheduleBooking(User $user, $bookingId, $newScheduleId)
+    {
+        $booking = Booking::with('schedule')->where('id', $bookingId)->where('user_id', $user->id)->firstOrFail();
+
+        if (!$user->hasRole('mahasiswa')) {
+            throw new \Exception('Fitur reschedule gratis hanya tersedia untuk mahasiswa.');
+        }
+
+        // Validasi batas waktu
+        $scheduleDateTime = \Carbon\Carbon::parse($booking->schedule->date . ' ' . $booking->schedule->start_time);
+        if (now()->diffInHours($scheduleDateTime, false) < 2) {
+            throw new \Exception('Reschedule hanya dapat diajukan maksimal 2 jam sebelum jadwal dimulai.');
+        }
+
+        $newSchedule = Schedule::findOrFail($newScheduleId);
+        if ($newSchedule->status === 'booked') {
+            throw new \Exception('Jadwal baru pilihan Anda sudah dibooking.');
+        }
+
+        return DB::transaction(function () use ($booking, $newSchedule) {
+            $oldSchedule = $booking->schedule;
+
+            
+            $oldSchedule->update(['status' => 'available']);
+
+            
+            $booking->update([
+                'schedule_id' => $newSchedule->id
+            ]);
+
+            if ($booking->status === 'approved') {
+                $newSchedule->update(['status' => 'booked']);
+            }
+            Reschedule::create([
+                'booking_id' => $booking->id,
+                'old_schedule_id' => $oldSchedule->id,
+                'new_schedule_id' => $newSchedule->id,
+            ]);
+
+            return $booking;
+        });
+    }
+
+    public function cancelBooking(User $user, $bookingId)
+    {
+        $booking = Booking::with('schedule')->where('id', $bookingId)->where('user_id', $user->id)->firstOrFail();
+
+        if (!$user->hasRole('mahasiswa')) {
+            throw new \Exception('Fitur pembatalan gratis hanya tersedia untuk mahasiswa.');
+        }
+
+        
+        $scheduleDateTime = \Carbon\Carbon::parse($booking->schedule->date . ' ' . $booking->schedule->start_time);
+        if (now()->diffInHours($scheduleDateTime, false) < 2) {
+            throw new \Exception('Pembatalan hanya dapat diajukan maksimal 2 jam sebelum jadwal dimulai.');
+        }
+
+        if ($booking->status === 'cancelled') {
+            throw new \Exception('Pemesanan ini sudah dibatalkan sebelumnya.');
+        }
+
+        return DB::transaction(function () use ($booking) {
+            $booking->update(['status' => 'cancelled']);
+
+            if ($booking->schedule) {
+                $booking->schedule->update(['status' => 'available']);
+            }
+
+            return $booking;
+        });
     }
 }

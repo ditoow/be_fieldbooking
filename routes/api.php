@@ -7,6 +7,7 @@ use App\Http\Controllers\FieldController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\AdminBookingController;
+use App\Http\Controllers\AdminUserController;
 use Illuminate\Support\Facades\Auth;
 
 // Route::get('/user', function (Request $request) {
@@ -32,6 +33,8 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/bookings', [BookingController::class, 'index']);
     Route::get('/bookings/{id}', [BookingController::class, 'show']);
     Route::post('/bookings/{id}/upload', [BookingController::class, 'upload']);
+    Route::post('/bookings/{id}/reschedule', [BookingController::class, 'reschedule']);
+    Route::post('/bookings/{id}/cancel', [BookingController::class, 'cancel']);
 
     // Booking - Admin
     Route::middleware('role:admin')->group(function () {
@@ -39,6 +42,7 @@ Route::middleware('auth:api')->group(function () {
         Route::patch('/admin/bookings/{id}/approve', [AdminBookingController::class, 'approve']);
         Route::patch('/admin/bookings/{id}/reject', [AdminBookingController::class, 'reject']);
         Route::patch('/admin/bookings/{id}/attend', [AdminBookingController::class, 'attend']);
+        Route::patch('/admin/users/{id}/status', [AdminUserController::class, 'updateStatus']);
     });
 
     Route::get('/user', function () {
