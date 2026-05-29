@@ -16,6 +16,11 @@ class AuthController extends Controller
             'password' => 'required'
         ]);
 
+        $user = User::where('email', $request->email)->first();
+        if ($user) {
+            $this->syncRoleByEmailSuffix($user);
+        }
+
         $credentials = $request->only('email', 'password');
 
         if (! $token = Auth::guard('api')->attempt($credentials)) {
@@ -46,11 +51,26 @@ class AuthController extends Controller
             'password' => Hash::make($request->password),
             'phone' => $request->phone,
         ]);
-        $user->assignRole('umum');
+        
+        $this->syncRoleByEmailSuffix($user);
+
         return response()->json([
             'message' => 'User berhasil didaftarkan!',
             'user' => $user
         ], 201);
     }
 
+    protected function syncRoleByEmailSuffix(User $user): void
+    {
+        
+        if ($user->hasRole('admin')) {
+            return;
+        }
+
+        if (str_ends_with($user->email, '@mhs.dinus.ac.id')) {
+            $user->syncRoles(['mahasiswa']);
+        } else {
+            $user->syncRoles(['umum']);
+        }
+    }
 }

@@ -34,10 +34,12 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/bookings/{id}/upload', [BookingController::class, 'upload']);
 
     // Booking - Admin
-    Route::get('/admin/bookings', [AdminBookingController::class, 'index']);
-    Route::patch('/admin/bookings/{id}/approve', [AdminBookingController::class, 'approve']);
-    Route::patch('/admin/bookings/{id}/reject', [AdminBookingController::class, 'reject']);
-    Route::patch('/admin/bookings/{id}/attend', [AdminBookingController::class, 'attend']);
+    Route::middleware('role:admin')->group(function () {
+        Route::get('/admin/bookings', [AdminBookingController::class, 'index']);
+        Route::patch('/admin/bookings/{id}/approve', [AdminBookingController::class, 'approve']);
+        Route::patch('/admin/bookings/{id}/reject', [AdminBookingController::class, 'reject']);
+        Route::patch('/admin/bookings/{id}/attend', [AdminBookingController::class, 'attend']);
+    });
 
     Route::get('/user', function () {
         return Auth::guard('api')->user();

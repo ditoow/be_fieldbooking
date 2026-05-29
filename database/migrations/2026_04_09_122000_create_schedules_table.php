@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('schedules', function (Blueprint $table) {
-            $table->id('id')->primary();
+            $table->id();
             $table->foreignId('field_id')->constrained('fields');
             $table->date('date');
             $table->time('start_time');
