@@ -35,7 +35,7 @@ class AdminBookingController extends Controller
             $booking = $this->bookingService->approveBooking($booking);
             return response()->json([
                 'message' => 'Booking approved successfully',
-                'data' => new BookingResource($booking->load(['schedule.field', 'user'])),
+                'data' => new BookingResource($booking->load(['schedules.field', 'user'])),
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -56,7 +56,7 @@ class AdminBookingController extends Controller
             $booking = $this->bookingService->rejectBooking($booking);
             return response()->json([
                 'message' => 'Booking rejected successfully',
-                'data' => new BookingResource($booking->load(['schedule.field', 'user'])),
+                'data' => new BookingResource($booking->load(['schedules.field', 'user'])),
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -77,7 +77,7 @@ class AdminBookingController extends Controller
             $booking = $this->bookingService->markAttendance($booking);
             return response()->json([
                 'message' => 'Attendance marked successfully',
-                'data' => new BookingResource($booking->load(['schedule.field', 'user'])),
+                'data' => new BookingResource($booking->load(['schedules.field', 'user'])),
             ]);
         } catch (\Exception $e) {
             return response()->json([

@@ -10,9 +10,9 @@ class Booking extends Model
 
     protected $fillable = [
         'user_id',
-        'schedule_id',
         'status',
         'booking_type',
+        'total_price',
         'file_url',
         'is_attended',
         'attended_at',
@@ -25,9 +25,14 @@ class Booking extends Model
         'expires_at' => 'datetime',
     ];
 
-    public function schedule()
+    public function schedules()
     {
-        return $this->belongsTo(Schedule::class, 'schedule_id');
+        return $this->belongsToMany(Schedule::class, 'booking_details');
+    }
+
+    public function details()
+    {
+        return $this->hasMany(BookingDetail::class);
     }
 
     public function user()

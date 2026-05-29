@@ -12,12 +12,17 @@ class ExpireBookingsCommand extends Command
 
     public function handle()
     {
-        $expiredBookings = Booking::where('status', 'pending')
+        $expiredBookings = Booking::with('schedules')->where('status', 'pending')
             ->where('expires_at', '<', now())
             ->get();
 
         foreach ($expiredBookings as $booking) {
             $booking->update(['status' => 'rejected']);
+            
+            foreach ($booking->schedules as $schedule) {
+                $schedule->update(['status' => 'available']);
+            }
+            
             $this->info("Expired booking: {$booking->id}");
         }
 

@@ -19,16 +19,17 @@ class BookingController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'schedule_id' => 'required|exists:schedules,id',
+            'schedule_ids' => 'required|array|min:1',
+            'schedule_ids.*' => 'exists:schedules,id',
         ]);
 
         $user = Auth::guard('api')->user();
 
         try {
-            $booking = $this->bookingService->createBooking($user, $request->schedule_id);
+            $booking = $this->bookingService->createBooking($user, $request->schedule_ids);
             return response()->json([
                 'message' => 'Booking created successfully',
-                'data' => new BookingResource($booking->load(['schedule.field', 'user'])),
+                'data' => new BookingResource($booking->load(['schedules.field', 'user'])),
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
@@ -74,7 +75,7 @@ class BookingController extends Controller
 
             return response()->json([
                 'message' => 'File uploaded successfully',
-                'data' => new BookingResource($booking),
+                'data' => new BookingResource($booking->load(['schedules.field', 'user'])),
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -86,16 +87,22 @@ class BookingController extends Controller
     public function reschedule(Request $request, $id)
     {
         $request->validate([
-            'schedule_id' => 'required|exists:schedules,id',
+            'old_schedule_id' => 'required|exists:schedules,id',
+            'new_schedule_id' => 'required|exists:schedules,id',
         ]);
 
         $user = Auth::guard('api')->user();
 
         try {
-            $booking = $this->bookingService->rescheduleBooking($user, $id, $request->schedule_id);
+            $booking = $this->bookingService->rescheduleBooking(
+                $user,
+                $id,
+                $request->old_schedule_id,
+                $request->new_schedule_id
+            );
             return response()->json([
                 'message' => 'Jadwal pemesanan berhasil dipindahkan!',
-                'data' => new BookingResource($booking->load(['schedule.field', 'user'])),
+                'data' => new BookingResource($booking->load(['schedules.field', 'user'])),
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -112,7 +119,7 @@ class BookingController extends Controller
             $booking = $this->bookingService->cancelBooking($user, $id);
             return response()->json([
                 'message' => 'Pemesanan berhasil dibatalkan!',
-                'data' => new BookingResource($booking->load(['schedule.field', 'user'])),
+                'data' => new BookingResource($booking->load(['schedules.field', 'user'])),
             ]);
         } catch (\Exception $e) {
             return response()->json([
