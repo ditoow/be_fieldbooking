@@ -12,6 +12,7 @@ use App\Services\FieldService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Carbon\Carbon;
+use App\Http\Resources\UserResource;
 
 class AdminController extends Controller
 {
@@ -22,6 +23,32 @@ class AdminController extends Controller
     {
         $this->bookingService = $bookingService;
         $this->fieldService = $fieldService;
+    }
+
+    public function indexUsers(Request $request)
+    {
+        $query = User::with('roles');
+
+        if ($search = $request->query('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('user_number', 'like', "%{$search}%");
+            });
+        }
+
+        if ($role = $request->query('role')) {
+            $query->whereHas('roles', fn($q) => $q->where('name', $role));
+        }
+
+        if ($status = $request->query('status')) {
+            $query->where('status', $status);
+        }
+
+        $perPage = $request->query('per_page', 10);
+        $users = $query->orderBy('created_at', 'desc')->paginate($perPage);
+
+        return UserResource::collection($users);
     }
 
     public function getStats(): JsonResponse

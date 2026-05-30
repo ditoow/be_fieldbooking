@@ -39,6 +39,7 @@ Route::middleware('auth:api')->group(function () {
         Route::patch('/admin/bookings/{id}/attend', [AdminController::class, 'attendBooking']);
         Route::patch('/admin/users/{id}/status', [AdminController::class, 'updateUserStatus']);
         Route::get('/admin/stats', [AdminController::class, 'getStats']);
+        Route::get('/admin/users', [AdminController::class, 'indexUsers']);
     });
 
     Route::get('/user', function () {
