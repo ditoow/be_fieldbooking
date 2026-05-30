@@ -18,10 +18,14 @@ class FieldResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'description' => $this->description,
+            'surface_type' => $this->surface_type,
+            'rating' => (float) $this->rating,
+            'image_url' => $this->image_url,
             'category' => $this->category,
             'status' => $this->status,
+            'price_min' => $this->price_min ?? null,
+            'price_max' => $this->price_max ?? null,
             'schedules' => ScheduleResource::collection($this->whenLoaded('schedules')),
         ];
-
     }
 }

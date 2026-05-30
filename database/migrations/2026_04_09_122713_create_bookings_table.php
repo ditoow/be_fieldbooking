@@ -14,15 +14,14 @@ return new class extends Migration
         Schema::create('bookings', function (Blueprint $table) {
             $table->id();
             $table->foreignUuid('user_id')->constrained('users')->cascadeOnDelete();
-            $table->foreignId('schedule_id')->constrained('schedules')->cascadeOnDelete();
-            $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
+            $table->enum('status', ['pending', 'approved', 'rejected', 'cancelled'])->default('pending');
             $table->enum('booking_type', ['paid', 'requirement']);
-            $table->timestamp('expires_at');
+            $table->integer('total_price')->default(0);
+            $table->timestamp('expires_at')->nullable();
             $table->string('file_url')->nullable();
             $table->boolean("is_attended")->default(false)->nullable();
             $table->timestamp("attended_at")->nullable();
             $table->timestamps();
-    
         });
     }
 

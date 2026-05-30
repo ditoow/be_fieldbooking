@@ -32,7 +32,7 @@ class UserSeeder extends Seeder
 
         $mahasiswa = \App\Models\User::create([
             'name' => 'aprilian',
-            'email' => 'mhs@mhs.com',
+            'email' => 'mhs@mhs.dinus.ac.id',
             'password' => \Illuminate\Support\Facades\Hash::make('mhs'),
             'phone' => '081298765432',
             'student_id' => 'A11.2023.01042',

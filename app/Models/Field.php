@@ -9,10 +9,13 @@ class Field extends Model
     protected $table = 'fields';
 
     protected $fillable = [
-       'name',
-       'description',
-       'category',
-       'status',
+        'name',
+        'description',
+        'surface_type',
+        'rating',
+        'image_url',
+        'category',
+        'status',
     ];
 
     public function schedules()

@@ -14,7 +14,9 @@ class BookingResource extends JsonResource
             'status' => $this->status,
             'booking_type' => $this->booking_type,
             'total_price' => (int) $this->total_price,
-            'file_url' => $this->file_url ? asset('storage/' . $this->file_url) : null,
+            'file_url' => $this->file_url
+                ? (filter_var($this->file_url, FILTER_VALIDATE_URL) ? $this->file_url : asset('storage/' . $this->file_url))
+                : null,
             'is_attended' => $this->is_attended,
             'attended_at' => $this->attended_at?->toIso8601String(),
             'expires_at' => $this->expires_at?->toIso8601String(),

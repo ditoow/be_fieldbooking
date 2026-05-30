@@ -8,9 +8,16 @@ use App\Models\Schedule;
 use App\Models\User;
 use App\Models\Reschedule;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class BookingService
 {
+    protected CloudinaryService $cloudinaryService;
+
+    public function __construct(CloudinaryService $cloudinaryService)
+    {
+        $this->cloudinaryService = $cloudinaryService;
+    }
     public function createBooking(User $user, array $scheduleIds)
     {
         if ($user->isSuspended()) {
@@ -28,6 +35,7 @@ class BookingService
             throw new \Exception('Beberapa slot jadwal pilihan Anda tidak valid.');
         }
 
+        // Validasi ketersediaan: pastikan tidak ada slot yang sudah dipesan
         foreach ($schedules as $schedule) {
             if ($schedule->status === 'booked') {
                 throw new \Exception("Slot jadwal tanggal {$schedule->date} pukul {$schedule->start_time} sudah dibooking orang lain.");
@@ -41,7 +49,24 @@ class BookingService
             throw new \Exception('User must have role mahasiswa or umum');
         }
 
-        // Hitung total harga pemesanan
+        
+        if ($isMahasiswa && count($scheduleIds) > 3) {
+            throw new \Exception('Mahasiswa hanya diperbolehkan memesan maksimal 3 jam dalam satu pemesanan.');
+        }
+
+
+        $fieldIds = $schedules->pluck('field_id')->unique();
+        if ($fieldIds->count() > 1) {
+            throw new \Exception('Semua slot jam yang dipesan harus berada di lapangan yang sama.');
+        }
+
+
+        $dates = $schedules->pluck('date')->unique();
+        if ($dates->count() > 1) {
+            throw new \Exception('Semua slot jam yang dipesan harus berada di tanggal yang sama.');
+        }
+
+
         $totalPrice = $schedules->sum('price');
 
         return DB::transaction(function () use ($user, $schedules, $isMahasiswa, $isUmum, $totalPrice) {
@@ -102,15 +127,127 @@ class BookingService
             }
             throw new \Exception('Batas waktu mengunggah berkas persyaratan (10 menit) telah habis.');
         }
+        
+        //Convert & Compress
+        $extension = strtolower($file->getClientOriginalExtension());
+        $tempPath = $file->getRealPath();
+        $fileSize = filesize($tempPath);
+        $maxFileSize = 1048576;
 
-        $path = $file->store('booking-files', 'public');
+        if (in_array($extension, ['jpg', 'jpeg', 'png'])) {
+            $localTempPath = $this->compressImageToTemp($file);
+        } elseif ($extension === 'pdf' && $fileSize > $maxFileSize) {
+            $localTempPath = $this->compressPdfToTemp($tempPath);
+        } else {
+            $localTempPath = $tempPath;
+        }
+
+        // Upload ke Cloudinary
+        $fileUrl = $this->uploadToCloudinary($localTempPath);
+
+       
+        if ($localTempPath !== $tempPath && file_exists($localTempPath)) {
+            @unlink($localTempPath);
+        }
 
         $booking->update([
-            'file_url' => $path,
+            'file_url' => $fileUrl,
             'expires_at' => now()->addHours(2),
         ]);
 
         return $booking;
+    }
+
+    
+    protected function uploadToCloudinary(string $filePath): string
+    {
+        $result = $this->cloudinaryService->upload($filePath);
+
+        return $result['secure_url'];
+    }
+
+   
+    protected function compressImageToTemp($file): string
+    {
+        $tempPath = $file->getRealPath();
+        $extension = strtolower($file->getClientOriginalExtension());
+        
+        if ($extension === 'png') {
+            $image = @imagecreatefrompng($tempPath);
+        } else {
+            $image = @imagecreatefromjpeg($tempPath);
+        }
+
+        if (!$image) {
+            return $tempPath;
+        }
+
+        $tempJpg = tempnam(sys_get_temp_dir(), 'img_compressed_') . '.jpg';
+        $maxFileSize = 1048576; 
+        $quality = 85;
+
+        do {
+            imagejpeg($image, $tempJpg, $quality);
+            clearstatcache(true, $tempJpg);
+            $compressedSize = filesize($tempJpg);
+            $quality -= 10;
+        } while ($compressedSize > $maxFileSize && $quality >= 10);
+
+        imagedestroy($image);
+
+        return $tempJpg;
+    }
+
+    
+    protected function compressPdfToTemp(string $sourcePdfPath): string
+    {
+        $tempJpg = tempnam(sys_get_temp_dir(), 'pdf_page_') . '.jpg';
+        $compressedJpg = tempnam(sys_get_temp_dir(), 'pdf_compressed_') . '.jpg';
+        $tempPdf = tempnam(sys_get_temp_dir(), 'pdf_final_') . '.pdf';
+
+        try {
+            $imagick = new \Imagick();
+            $imagick->readImage($sourcePdfPath . '[0]'); 
+            $imagick->setImageFormat('jpg');
+            $imagick->writeImage($tempJpg);
+            $imagick->clear();
+            $imagick->destroy();
+
+            $image = @imagecreatefromjpeg($tempJpg);
+            if (!$image) {
+                throw new \Exception('Gagal memuat render gambar dari PDF.');
+            }
+
+            $maxFileSize = 1048576; 
+            $quality = 80;
+
+            do {
+                imagejpeg($image, $compressedJpg, $quality);
+                clearstatcache(true, $compressedJpg);
+                $compressedSize = filesize($compressedJpg);
+                $quality -= 10;
+            } while ($compressedSize > $maxFileSize && $quality >= 10);
+            
+            imagedestroy($image);
+
+            $pdf = class_exists('\Fpdf\Fpdf') ? new \Fpdf\Fpdf() : new \FPDF();
+            $pdf->AddPage();
+            $pdf->Image($compressedJpg, 10, 10, 190);
+            $pdf->Output('F', $tempPdf);
+
+            @unlink($tempJpg);
+            @unlink($compressedJpg);
+
+            return $tempPdf;
+
+        } catch (\Exception $e) {
+            // Fallback: kembalikan PDF asli tanpa kompresi
+            @unlink($tempJpg);
+            @unlink($compressedJpg);
+            @unlink($tempPdf);
+
+            return $sourcePdfPath;
+        }
     }
 
     public function getAllBookings($filters = [])
@@ -203,10 +340,18 @@ class BookingService
             throw new \Exception('Fitur reschedule gratis hanya tersedia untuk mahasiswa.');
         }
 
+        if (!in_array($booking->status, ['pending', 'approved'])) {
+            throw new \Exception('Hanya pemesanan aktif yang dapat dipindahkan.');
+        }
+        if ((int) $oldScheduleId === (int) $newScheduleId) {
+            throw new \Exception('Jadwal baru tidak boleh sama dengan jadwal lama.');
+        }
+
         $oldSchedule = $booking->schedules->where('id', $oldScheduleId)->first();
         if (!$oldSchedule) {
             throw new \Exception('Jadwal lama tidak ditemukan dalam pemesanan ini.');
         }
+
         $scheduleDateTime = \Carbon\Carbon::parse($oldSchedule->date . ' ' . $oldSchedule->start_time);
         if (now()->diffInHours($scheduleDateTime, false) < 2) {
             throw new \Exception('Reschedule hanya dapat diajukan maksimal 2 jam sebelum jadwal dimulai.');
@@ -227,6 +372,14 @@ class BookingService
             if ($booking->status === 'approved' || $booking->status === 'pending') {
                 $newSchedule->update(['status' => 'booked']);
             }
+            $currentScheduleIds = $booking->schedules->pluck('id')->toArray();
+            $key = array_search($oldSchedule->id, $currentScheduleIds);
+            if ($key !== false) {
+                $currentScheduleIds[$key] = $newSchedule->id;
+            }
+            $newTotalPrice = Schedule::whereIn('id', $currentScheduleIds)->sum('price');
+            $booking->update(['total_price' => $newTotalPrice]);
+
             Reschedule::create([
                 'booking_id' => $booking->id,
                 'old_schedule_id' => $oldSchedule->id,
@@ -243,6 +396,10 @@ class BookingService
 
         if (!$user->hasRole('mahasiswa')) {
             throw new \Exception('Fitur pembatalan gratis hanya tersedia untuk mahasiswa.');
+        }
+
+        if (!in_array($booking->status, ['pending', 'approved'])) {
+            throw new \Exception('Hanya pemesanan aktif yang dapat dibatalkan.');
         }
 
         foreach ($booking->schedules as $schedule) {

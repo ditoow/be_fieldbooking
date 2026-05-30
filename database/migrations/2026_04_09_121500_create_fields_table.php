@@ -14,7 +14,10 @@ return new class extends Migration
         Schema::create('fields', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('description');
+            $table->text('description');
+            $table->enum('surface_type', ['vinyl', 'parket', 'semen'])->default('vinyl');
+            $table->decimal('rating', 3, 1)->default(0.0);
+            $table->string('image_url')->nullable();
             $table->string('category');
             $table->enum('status', ['available', 'maintenance'])->default('available');
             $table->timestamps();

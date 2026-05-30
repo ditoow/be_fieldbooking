@@ -64,7 +64,7 @@ class BookingController extends Controller
     public function upload(Request $request, $id)
     {
         $request->validate([
-            'file' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'file' => 'required|file|mimes:jpg,jpeg,png,pdf',
         ]);
 
         $user = Auth::guard('api')->user();
