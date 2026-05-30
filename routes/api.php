@@ -25,7 +25,6 @@ Route::get('/schedules', [ScheduleController::class, 'index']);
 Route::middleware('auth:api')->group(function () {
 
     // Field
-    Route::post('/fields', [FieldController::class, 'store']);
     Route::get('/fields/{id}', [FieldController::class, 'show']);
 
     // Booking - User
@@ -33,11 +32,12 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/bookings', [BookingController::class, 'index']);
     Route::get('/bookings/{id}', [BookingController::class, 'show']);
     Route::post('/bookings/{id}/upload', [BookingController::class, 'upload']);
-    Route::post('/bookings/{id}/reschedule', [BookingController::class, 'reschedule']);
-    Route::post('/bookings/{id}/cancel', [BookingController::class, 'cancel']);
+    Route::patch('/bookings/{id}/reschedule', [BookingController::class, 'reschedule']);
+    Route::patch('/bookings/{id}/cancel', [BookingController::class, 'cancel']);
 
     // Booking - Admin
     Route::middleware('role:admin')->group(function () {
+        Route::post('/fields', [FieldController::class, 'store']);
         Route::get('/admin/bookings', [AdminBookingController::class, 'index']);
         Route::patch('/admin/bookings/{id}/approve', [AdminBookingController::class, 'approve']);
         Route::patch('/admin/bookings/{id}/reject', [AdminBookingController::class, 'reject']);
