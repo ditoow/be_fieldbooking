@@ -69,7 +69,7 @@ class BookingService
 
         $totalPrice = $schedules->sum('price');
 
-        return DB::transaction(function () use ($user, $schedules, $isMahasiswa, $isUmum, $totalPrice) {
+        $booking = DB::transaction(function () use ($user, $schedules, $isMahasiswa, $isUmum, $totalPrice) {
             $booking = Booking::create([
                 'user_id' => $user->id,
                 'status' => $isUmum ? 'approved' : 'pending',
@@ -89,6 +89,23 @@ class BookingService
 
             return $booking;
         });
+
+        if ($isUmum) {
+            $firstSchedule = $schedules->sortBy('start_time')->first();
+            $lastSchedule = $schedules->sortBy('start_time')->last();
+            $fieldName = $firstSchedule->field->name ?? 'Lapangan';
+            $startTime = $firstSchedule ? date('H:i', strtotime($firstSchedule->start_time)) : '';
+            $endTime = $lastSchedule ? date('H:i', strtotime($lastSchedule->end_time)) : '';
+
+            $user->notify(new \App\Notifications\BookingNotification(
+                'Pemesanan Berhasil',
+                "Booking lapangan {$fieldName} pukul {$startTime} - {$endTime} telah dikonfirmasi.",
+                'success',
+                $booking->id
+            ));
+        }
+
+        return $booking;
     }
 
     public function getUserBookings(User $user, $filters = [])
@@ -283,7 +300,7 @@ class BookingService
             throw new \Exception('Booking has expired');
         }
 
-        return DB::transaction(function () use ($booking) {
+        $booking = DB::transaction(function () use ($booking) {
             $booking->update(['status' => 'approved']);
 
             foreach ($booking->schedules as $schedule) {
@@ -292,6 +309,28 @@ class BookingService
 
             return $booking;
         });
+
+        $firstSchedule = $booking->schedules->sortBy('start_time')->first();
+        $lastSchedule = $booking->schedules->sortBy('start_time')->last();
+        $fieldName = $firstSchedule->field->name ?? 'Lapangan';
+        $startTime = $firstSchedule ? date('H:i', strtotime($firstSchedule->start_time)) : '';
+        $endTime = $lastSchedule ? date('H:i', strtotime($lastSchedule->end_time)) : '';
+
+        $booking->user->notify(new \App\Notifications\BookingNotification(
+            'Pemesanan Berhasil',
+            "Booking lapangan {$fieldName} pukul {$startTime} - {$endTime} telah dikonfirmasi.",
+            'success',
+            $booking->id
+        ));
+
+        $booking->user->notify(new \App\Notifications\BookingNotification(
+            'Verifikasi Dokumen',
+            'Admin telah menyetujui berkas Surat TU Anda. Silakan cek riwayat booking.',
+            'info',
+            $booking->id
+        ));
+
+        return $booking;
     }
 
     public function rejectBooking(Booking $booking)
@@ -300,7 +339,7 @@ class BookingService
             throw new \Exception('Can only reject pending booking');
         }
 
-        return DB::transaction(function () use ($booking) {
+        $booking = DB::transaction(function () use ($booking) {
             $booking->update(['status' => 'rejected']);
 
             foreach ($booking->schedules as $schedule) {
@@ -309,6 +348,15 @@ class BookingService
 
             return $booking;
         });
+
+        $booking->user->notify(new \App\Notifications\BookingNotification(
+            'Pemesanan Ditolak',
+            'Mohon maaf, pengajuan booking lapangan Anda ditolak oleh Admin karena dokumen berkas tidak memenuhi syarat.',
+            'warning',
+            $booking->id
+        ));
+
+        return $booking;
     }
 
     public function markAttendance(Booking $booking)

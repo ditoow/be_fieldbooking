@@ -8,6 +8,7 @@ use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\AdminBookingController;
 use App\Http\Controllers\AdminUserController;
+use App\Http\Controllers\NotificationController;
 use Illuminate\Support\Facades\Auth;
 
 // Route::get('/user', function (Request $request) {
@@ -51,4 +52,8 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/user', function () {
         return Auth::guard('api')->user();
     });
+
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::patch('/notifications/{id}/read', [NotificationController::class, 'read']);
+    Route::patch('/notifications/read-all', [NotificationController::class, 'readAll']);
 });
