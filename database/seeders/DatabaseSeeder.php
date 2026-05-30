@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             FieldSeeder::class,
             ScheduleSeeder::class,
             BookingSeeder::class,
+            NotificationSeeder::class,
         ]);
     }
 }
