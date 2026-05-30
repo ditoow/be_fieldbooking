@@ -56,17 +56,33 @@ class User extends Authenticatable implements JWTSubject
         ];
     }
 
-    protected static function boot()
+    /**
+     * Generate a role-based user number.
+     *
+     * @param string $role 'mahasiswa' | 'umum'
+     */
+    public static function generateUserNumber(string $role): ?string
     {
-        parent::boot();
+        $prefixMap = [
+            'mahasiswa' => '#MHS-',
+            'umum'      => '#USER-',
+        ];
 
-        static::creating(function ($user) {
-            if (empty($user->user_number)) {
-                $latestUser = static::orderByRaw('CAST(SUBSTRING(user_number, 4) AS UNSIGNED) DESC')->first();
-                $nextId = $latestUser ? ((int) substr($latestUser->user_number, 3)) + 1 : 1001;
-                $user->user_number = '#U-' . sprintf('%04d', $nextId);
-            }
-        });
+        $prefix = $prefixMap[$role] ?? null;
+
+        if (!$prefix) {
+            return null;
+        }
+
+        $latest = static::where('user_number', 'like', $prefix . '%')
+            ->orderByRaw('CAST(SUBSTRING(user_number, ?) AS UNSIGNED) DESC', [strlen($prefix) + 1])
+            ->first();
+
+        $nextId = $latest
+            ? ((int) substr($latest->user_number, strlen($prefix))) + 1
+            : 1;
+
+        return $prefix . sprintf('%03d', $nextId);
     }
 
     public function bookings()

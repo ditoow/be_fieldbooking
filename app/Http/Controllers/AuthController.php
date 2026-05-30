@@ -63,6 +63,12 @@ class AuthController extends Controller
         
         $this->syncRoleByEmailSuffix($user);
 
+        $role = $user->getRoleNames()->first();
+        $userNumber = User::generateUserNumber($role);
+        if ($userNumber) {
+            $user->update(['user_number' => $userNumber]);
+        }
+
         return response()->json([
             'message' => 'User berhasil didaftarkan!',
             'user' => $user
