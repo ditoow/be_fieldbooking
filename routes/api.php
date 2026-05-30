@@ -24,6 +24,9 @@ Route::get('/schedules', [ScheduleController::class, 'index']);
 
 Route::middleware('auth:api')->group(function () {
 
+    // Auth
+    Route::post('/logout', [AuthController::class, 'logout']);
+
     // Field
     Route::get('/fields/{id}', [FieldController::class, 'show']);
 
