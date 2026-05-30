@@ -40,7 +40,7 @@ class User extends Authenticatable implements JWTSubject
         'phone',
         'student_id',
         'status',
-
+        'user_number',
     ];
 
     protected $hidden = [
@@ -56,6 +56,18 @@ class User extends Authenticatable implements JWTSubject
         ];
     }
 
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($user) {
+            if (empty($user->user_number)) {
+                $latestUser = static::orderByRaw('CAST(SUBSTRING(user_number, 4) AS UNSIGNED) DESC')->first();
+                $nextId = $latestUser ? ((int) substr($latestUser->user_number, 3)) + 1 : 1001;
+                $user->user_number = '#U-' . sprintf('%04d', $nextId);
+            }
+        });
+    }
 
     public function bookings()
     {

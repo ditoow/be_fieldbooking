@@ -6,32 +6,22 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\FieldController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\BookingController;
-use App\Http\Controllers\AdminBookingController;
-use App\Http\Controllers\AdminUserController;
+use App\Http\Controllers\AdminController;
 use App\Http\Controllers\NotificationController;
 use Illuminate\Support\Facades\Auth;
 
-// Route::get('/user', function (Request $request) {
-//     return $request->user();
-// })->middleware('auth:sanctum');
-
-
 Route::post('register', [AuthController::class, 'register']);
 Route::post('login', [AuthController::class, 'login']);
-
 
 Route::get('/fields', [FieldController::class, 'index']);
 Route::get('/schedules', [ScheduleController::class, 'index']);
 
 Route::middleware('auth:api')->group(function () {
 
-    // Auth
     Route::post('/logout', [AuthController::class, 'logout']);
 
-    // Field
     Route::get('/fields/{id}', [FieldController::class, 'show']);
 
-    // Booking - User
     Route::post('/bookings', [BookingController::class, 'store']);
     Route::get('/bookings', [BookingController::class, 'index']);
     Route::get('/bookings/{id}', [BookingController::class, 'show']);
@@ -39,14 +29,16 @@ Route::middleware('auth:api')->group(function () {
     Route::patch('/bookings/{id}/reschedule', [BookingController::class, 'reschedule']);
     Route::patch('/bookings/{id}/cancel', [BookingController::class, 'cancel']);
 
-    // Booking - Admin
     Route::middleware('role:admin')->group(function () {
-        Route::post('/fields', [FieldController::class, 'store']);
-        Route::get('/admin/bookings', [AdminBookingController::class, 'index']);
-        Route::patch('/admin/bookings/{id}/approve', [AdminBookingController::class, 'approve']);
-        Route::patch('/admin/bookings/{id}/reject', [AdminBookingController::class, 'reject']);
-        Route::patch('/admin/bookings/{id}/attend', [AdminBookingController::class, 'attend']);
-        Route::patch('/admin/users/{id}/status', [AdminUserController::class, 'updateStatus']);
+        Route::post('/admin/fields', [AdminController::class, 'storeField']);
+        Route::patch('/admin/fields/{id}', [AdminController::class, 'updateField']);
+        Route::delete('/admin/fields/{id}', [AdminController::class, 'destroyField']);
+        Route::get('/admin/bookings', [AdminController::class, 'indexBookings']);
+        Route::patch('/admin/bookings/{id}/approve', [AdminController::class, 'approveBooking']);
+        Route::patch('/admin/bookings/{id}/reject', [AdminController::class, 'rejectBooking']);
+        Route::patch('/admin/bookings/{id}/attend', [AdminController::class, 'attendBooking']);
+        Route::patch('/admin/users/{id}/status', [AdminController::class, 'updateUserStatus']);
+        Route::get('/admin/stats', [AdminController::class, 'getStats']);
     });
 
     Route::get('/user', function () {

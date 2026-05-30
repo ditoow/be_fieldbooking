@@ -10,6 +10,7 @@ class Booking extends Model
 
     protected $fillable = [
         'user_id',
+        'booking_number',
         'status',
         'booking_type',
         'total_price',
@@ -24,6 +25,18 @@ class Booking extends Model
         'attended_at' => 'datetime',
         'expires_at' => 'datetime',
     ];
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($booking) {
+            if (empty($booking->booking_number)) {
+                $nextId = (static::max('id') ?? 0) + 1;
+                $booking->booking_number = '#UGO-' . sprintf('%04d', $nextId);
+            }
+        });
+    }
 
     public function schedules()
     {

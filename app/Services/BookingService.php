@@ -267,23 +267,46 @@ class BookingService
         }
     }
 
-    public function getAllBookings($filters = [])
+    public function getAllBookings($filters = [], $perPage = 10)
     {
         $query = Booking::with(['schedules.field', 'user']);
 
-        if (isset($filters['status'])) {
+        if (isset($filters['status']) && !empty($filters['status'])) {
             $query->where('status', $filters['status']);
         }
 
-        if (isset($filters['booking_type'])) {
+        if (isset($filters['booking_type']) && !empty($filters['booking_type'])) {
             $query->where('booking_type', $filters['booking_type']);
         }
 
-        if (isset($filters['user_id'])) {
+        if (isset($filters['user_id']) && !empty($filters['user_id'])) {
             $query->where('user_id', $filters['user_id']);
         }
 
-        return $query->orderBy('created_at', 'desc')->get();
+        if (isset($filters['field_id']) && !empty($filters['field_id'])) {
+            $query->whereHas('schedules', function ($q) use ($filters) {
+                $q->where('field_id', $filters['field_id']);
+            });
+        }
+
+        if (isset($filters['date']) && !empty($filters['date'])) {
+            $query->whereHas('schedules', function ($q) use ($filters) {
+                $q->where('date', $filters['date']);
+            });
+        }
+
+        if (isset($filters['search']) && !empty($filters['search'])) {
+            $search = $filters['search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('booking_number', 'like', "%{$search}%")
+                  ->orWhereHas('user', function ($uq) use ($search) {
+                      $uq->where('name', 'like', "%{$search}%")
+                         ->orWhere('email', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        return $query->orderBy('created_at', 'desc')->paginate($perPage);
     }
 
     public function approveBooking(Booking $booking)
