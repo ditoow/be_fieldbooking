@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Payment;
 
+use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Services\BookingService;
 use App\Services\MidtransService;

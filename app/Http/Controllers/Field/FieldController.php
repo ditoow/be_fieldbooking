@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Field;
 
+use App\Http\Controllers\Controller;
 use App\Http\Requests\Field\IndexFieldRequest;
 use App\Http\Resources\FieldResource;
 use App\Services\FieldService;
