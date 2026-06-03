@@ -13,10 +13,12 @@ use Illuminate\Support\Facades\Storage;
 class BookingService
 {
     protected CloudinaryService $cloudinaryService;
+    protected MidtransService $midtransService;
 
-    public function __construct(CloudinaryService $cloudinaryService)
+    public function __construct(CloudinaryService $cloudinaryService, MidtransService $midtransService)
     {
         $this->cloudinaryService = $cloudinaryService;
+        $this->midtransService = $midtransService;
     }
     public function createBooking(User $user, array $scheduleIds)
     {
@@ -72,9 +74,9 @@ class BookingService
         $booking = DB::transaction(function () use ($user, $schedules, $isMahasiswa, $isUmum, $totalPrice) {
             $booking = Booking::create([
                 'user_id' => $user->id,
-                'status' => $isUmum ? 'approved' : 'pending',
+                'status' => 'pending',
                 'booking_type' => $isUmum ? 'paid' : 'requirement',
-                'expires_at' => $isMahasiswa ? now()->addMinutes(10) : null,
+                'expires_at' => $isMahasiswa ? now()->addMinutes(10) : now()->addMinutes(30),
                 'total_price' => $totalPrice,
             ]);
 
@@ -91,6 +93,24 @@ class BookingService
         });
 
         if ($isUmum) {
+            try {
+                if ($booking->booking_type === 'paid') {
+                    $midtransResult = $this->midtransService->createQris($booking);
+                    $booking->update([
+                        'qr_id' => $midtransResult['transaction_id'],
+                        'qr_string' => (isset($midtransResult['actions'][0]->url) ? $midtransResult['actions'][0]->url : null) ?? ($midtransResult['qr_string'] ?? null),
+                    ]);
+                }
+            } catch (\Exception $e) {
+                DB::transaction(function () use ($booking) {
+                    $booking->update(['status' => 'rejected']);
+                    foreach ($booking->schedules as $schedule) {
+                        $schedule->update(['status' => 'available']);
+                    }
+                });
+                throw $e;
+            }
+
             $firstSchedule = $schedules->sortBy('start_time')->first();
             $lastSchedule = $schedules->sortBy('start_time')->last();
             $fieldName = $firstSchedule->field->name ?? 'Lapangan';
@@ -98,9 +118,9 @@ class BookingService
             $endTime = $lastSchedule ? date('H:i', strtotime($lastSchedule->end_time)) : '';
 
             $user->notify(new \App\Notifications\BookingNotification(
-                'Pemesanan Berhasil',
-                "Booking lapangan {$fieldName} pukul {$startTime} - {$endTime} telah dikonfirmasi.",
-                'success',
+                'Menunggu Pembayaran',
+                "Booking lapangan {$fieldName} pukul {$startTime} - {$endTime} berhasil dibuat. Silakan selesaikan pembayaran Anda.",
+                'info',
                 $booking->id
             ));
         }
@@ -493,5 +513,73 @@ class BookingService
 
             return $booking;
         });
+    }
+
+    /**
+     * Menyetujui pemesanan umum setelah dibayar lunas
+     */
+    public function approvePaidBooking(Booking $booking): Booking
+    {
+        if ($booking->status === 'approved') {
+            return $booking;
+        }
+
+        $booking = DB::transaction(function () use ($booking) {
+            $booking->update([
+                'status' => 'approved',
+                'expires_at' => null, // Hapus batas waktu pembayaran
+            ]);
+
+            foreach ($booking->schedules as $schedule) {
+                $schedule->update(['status' => 'booked']);
+            }
+
+            return $booking;
+        });
+
+        $firstSchedule = $booking->schedules->sortBy('start_time')->first();
+        $lastSchedule = $booking->schedules->sortBy('start_time')->last();
+        $fieldName = $firstSchedule->field->name ?? 'Lapangan';
+        $startTime = $firstSchedule ? date('H:i', strtotime($firstSchedule->start_time)) : '';
+        $endTime = $lastSchedule ? date('H:i', strtotime($lastSchedule->end_time)) : '';
+
+        $booking->user->notify(new \App\Notifications\BookingNotification(
+            'Pemesanan Berhasil',
+            "Booking lapangan {$fieldName} pukul {$startTime} - {$endTime} telah dikonfirmasi.",
+            'success',
+            $booking->id
+        ));
+
+        return $booking;
+    }
+
+    /**
+     * Membatalkan pemesanan umum karena kedaluwarsa atau ditolak
+     */
+    public function failPaidBooking(Booking $booking, string $reason = 'expired'): Booking
+    {
+        if ($booking->status === 'rejected' || $booking->status === 'cancelled') {
+            return $booking;
+        }
+
+        $booking = DB::transaction(function () use ($booking, $reason) {
+            $status = $reason === 'cancel' ? 'cancelled' : 'rejected';
+            $booking->update(['status' => $status]);
+
+            foreach ($booking->schedules as $schedule) {
+                $schedule->update(['status' => 'available']); // Bebaskan jadwal kembali
+            }
+
+            return $booking;
+        });
+
+        $booking->user->notify(new \App\Notifications\BookingNotification(
+            'Pemesanan Dibatalkan',
+            "Booking lapangan Anda dibatalkan karena pembayaran {$reason}.",
+            'warning',
+            $booking->id
+        ));
+
+        return $booking;
     }
 }

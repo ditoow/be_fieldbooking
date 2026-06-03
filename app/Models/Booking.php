@@ -15,6 +15,8 @@ class Booking extends Model
         'booking_type',
         'total_price',
         'file_url',
+        'qr_id',
+        'qr_string',
         'is_attended',
         'attended_at',
         'expires_at',

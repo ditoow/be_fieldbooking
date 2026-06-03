@@ -20,6 +20,8 @@ return new class extends Migration
             $table->integer('total_price')->default(0);
             $table->timestamp('expires_at')->nullable();
             $table->string('file_url')->nullable();
+            $table->string('qr_id')->nullable();
+            $table->string('qr_string')->nullable();
             $table->boolean("is_attended")->default(false)->nullable();
             $table->timestamp("attended_at")->nullable();
             $table->timestamps();

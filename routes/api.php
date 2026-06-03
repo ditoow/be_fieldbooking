@@ -8,10 +8,12 @@ use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PaymentController;
 use Illuminate\Support\Facades\Auth;
 
 Route::post('register', [AuthController::class, 'register']);
 Route::post('login', [AuthController::class, 'login']);
+Route::post('/payment/midtrans-callback', [PaymentController::class, 'handleWebhook']);
 
 Route::get('/fields', [FieldController::class, 'index']);
 Route::get('/schedules', [ScheduleController::class, 'index']);
