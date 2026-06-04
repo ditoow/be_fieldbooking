@@ -30,14 +30,12 @@ class BookingService
             throw new \Exception('Anda harus memilih minimal satu slot jadwal.');
         }
 
-        // Ambil semua data schedules
         $schedules = Schedule::whereIn('id', $scheduleIds)->get();
 
         if ($schedules->count() !== count($scheduleIds)) {
             throw new \Exception('Beberapa slot jadwal pilihan Anda tidak valid.');
         }
 
-        // Validasi ketersediaan: pastikan tidak ada slot yang sudah dipesan
         foreach ($schedules as $schedule) {
             if ($schedule->status === 'booked') {
                 throw new \Exception("Slot jadwal tanggal {$schedule->date} pukul {$schedule->start_time} sudah dibooking orang lain.");
@@ -142,10 +140,30 @@ class BookingService
 
     public function getBookingById($bookingId, User $user)
     {
-        return Booking::with(['schedules.field', 'user'])
+        $booking = Booking::with(['schedules.field', 'user'])
             ->where('id', $bookingId)
             ->where('user_id', $user->id)
             ->firstOrFail();
+
+        if ($booking->status === 'pending' && $booking->booking_type === 'paid' && $booking->qr_id) {
+            $midtransStatus = $this->midtransService->checkTransactionStatus($booking->qr_id);
+            if ($midtransStatus) {
+                $transactionStatus = $midtransStatus->transaction_status ?? null;
+                $fraudStatus = $midtransStatus->fraud_status ?? null;
+
+                if ($transactionStatus == 'capture') {
+                    if ($fraudStatus == 'accept') {
+                        $booking = $this->approvePaidBooking($booking);
+                    }
+                } else if ($transactionStatus == 'settlement') {
+                    $booking = $this->approvePaidBooking($booking);
+                } else if (in_array($transactionStatus, ['cancel', 'deny', 'expire'])) {
+                    $booking = $this->failPaidBooking($booking, $transactionStatus);
+                }
+            }
+        }
+
+        return $booking;
     }
 
     public function uploadFile(Booking $booking, $file)
@@ -165,7 +183,6 @@ class BookingService
             throw new \Exception('Batas waktu mengunggah berkas persyaratan (10 menit) telah habis.');
         }
         
-        //Convert & Compress
         $extension = strtolower($file->getClientOriginalExtension());
         $tempPath = $file->getRealPath();
         $fileSize = filesize($tempPath);
@@ -179,7 +196,6 @@ class BookingService
             $localTempPath = $tempPath;
         }
 
-        // Upload ke Cloudinary
         $fileUrl = $this->uploadToCloudinary($localTempPath);
 
        
@@ -278,7 +294,6 @@ class BookingService
             return $tempPdf;
 
         } catch (\Exception $e) {
-            // Fallback: kembalikan PDF asli tanpa kompresi
             @unlink($tempJpg);
             @unlink($compressedJpg);
             @unlink($tempPdf);
@@ -485,12 +500,19 @@ class BookingService
     {
         $booking = Booking::with('schedules')->where('id', $bookingId)->where('user_id', $user->id)->firstOrFail();
 
-        if (!$user->hasRole('mahasiswa')) {
-            throw new \Exception('Fitur pembatalan gratis hanya tersedia untuk mahasiswa.');
-        }
+        $isMahasiswa = $user->hasRole('mahasiswa');
+        $isUmum = $user->hasRole('umum');
 
-        if (!in_array($booking->status, ['pending', 'approved'])) {
-            throw new \Exception('Hanya pemesanan aktif yang dapat dibatalkan.');
+        if ($isMahasiswa) {
+            if (!in_array($booking->status, ['pending', 'approved'])) {
+                throw new \Exception('Hanya pemesanan aktif yang dapat dibatalkan.');
+            }
+        } elseif ($isUmum) {
+            if ($booking->status !== 'pending') {
+                throw new \Exception('Pesanan berbayar sudah tidak dapat dibatalkan secara manual karena sudah dibayar.');
+            }
+        } else {
+            throw new \Exception('Akun Anda tidak memiliki akses untuk membatalkan pesanan.');
         }
 
         foreach ($booking->schedules as $schedule) {
@@ -515,9 +537,6 @@ class BookingService
         });
     }
 
-    /**
-     * Menyetujui pemesanan umum setelah dibayar lunas
-     */
     public function approvePaidBooking(Booking $booking): Booking
     {
         if ($booking->status === 'approved') {
@@ -527,7 +546,7 @@ class BookingService
         $booking = DB::transaction(function () use ($booking) {
             $booking->update([
                 'status' => 'approved',
-                'expires_at' => null, // Hapus batas waktu pembayaran
+                'expires_at' => null,
             ]);
 
             foreach ($booking->schedules as $schedule) {
@@ -553,9 +572,6 @@ class BookingService
         return $booking;
     }
 
-    /**
-     * Membatalkan pemesanan umum karena kedaluwarsa atau ditolak
-     */
     public function failPaidBooking(Booking $booking, string $reason = 'expired'): Booking
     {
         if ($booking->status === 'rejected' || $booking->status === 'cancelled') {
@@ -567,7 +583,7 @@ class BookingService
             $booking->update(['status' => $status]);
 
             foreach ($booking->schedules as $schedule) {
-                $schedule->update(['status' => 'available']); // Bebaskan jadwal kembali
+                $schedule->update(['status' => 'available']);
             }
 
             return $booking;

@@ -35,7 +35,7 @@ class Booking extends Model
         static::creating(function ($booking) {
             if (empty($booking->booking_number)) {
                 $nextId = (static::max('id') ?? 0) + 1;
-                $booking->booking_number = '#UGO-' . sprintf('%04d', $nextId);
+                $booking->booking_number = 'UGO-' . now()->format('YmdHis') . '-' . sprintf('%04d', $nextId);
             }
         });
     }

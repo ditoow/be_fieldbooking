@@ -5,6 +5,7 @@ namespace App\Services;
 use Midtrans\Config;
 use Midtrans\CoreApi;
 use Midtrans\Notification;
+use Midtrans\Transaction;
 use App\Models\Booking;
 
 class MidtransService
@@ -24,7 +25,7 @@ class MidtransService
         $params = [
             'payment_type' => 'qris',
             'transaction_details' => [
-                'order_id' => $booking->booking_number,
+                'order_id' => $booking->booking_number . '-' . time(),
                 'gross_amount' => (int) $booking->total_price,
             ],
             'customer_details' => [
@@ -58,5 +59,15 @@ class MidtransService
     public function handleNotification()
     {
         return new Notification();
+    }
+
+    public function checkTransactionStatus($transactionId)
+    {
+        try {
+            return Transaction::status($transactionId);
+        } catch (\Exception $e) {
+            \Log::error('Gagal mengecek status Midtrans secara langsung: ' . $e->getMessage());
+            return null;
+        }
     }
 }
