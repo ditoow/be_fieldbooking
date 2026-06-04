@@ -7,11 +7,11 @@ use Illuminate\Support\Facades\DB;
 
 class FieldService
 {
-    protected CloudinaryService $cloudinaryService;
+    protected SupabaseService $supabaseService;
 
-    public function __construct(CloudinaryService $cloudinaryService)
+    public function __construct(SupabaseService $supabaseService)
     {
-        $this->cloudinaryService = $cloudinaryService;
+        $this->supabaseService = $supabaseService;
     }
 
     public function createField($data)
@@ -108,7 +108,7 @@ class FieldService
 
     protected function uploadImage($file): string
     {
-        $result = $this->cloudinaryService->upload($file->getRealPath(), [
+        $result = $this->supabaseService->upload($file->getRealPath(), [
             'asset_folder' => 'field-images'
         ]);
         return $result['secure_url'];

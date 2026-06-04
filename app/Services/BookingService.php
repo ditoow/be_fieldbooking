@@ -12,12 +12,12 @@ use Illuminate\Support\Facades\Storage;
 
 class BookingService
 {
-    protected CloudinaryService $cloudinaryService;
+    protected SupabaseService $supabaseService;
     protected MidtransService $midtransService;
 
-    public function __construct(CloudinaryService $cloudinaryService, MidtransService $midtransService)
+    public function __construct(SupabaseService $supabaseService, MidtransService $midtransService)
     {
-        $this->cloudinaryService = $cloudinaryService;
+        $this->supabaseService = $supabaseService;
         $this->midtransService = $midtransService;
     }
     public function createBooking(User $user, array $scheduleIds)
@@ -196,7 +196,7 @@ class BookingService
             $localTempPath = $tempPath;
         }
 
-        $fileUrl = $this->uploadToCloudinary($localTempPath);
+        $fileUrl = $this->uploadToSupabase($localTempPath);
 
        
         if ($localTempPath !== $tempPath && file_exists($localTempPath)) {
@@ -212,9 +212,11 @@ class BookingService
     }
 
     
-    protected function uploadToCloudinary(string $filePath): string
+    protected function uploadToSupabase(string $filePath): string
     {
-        $result = $this->cloudinaryService->upload($filePath);
+        $result = $this->supabaseService->upload($filePath, [
+            'asset_folder' => 'booking-files'
+        ]);
 
         return $result['secure_url'];
     }

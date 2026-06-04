@@ -30,7 +30,7 @@ class BookingSeeder extends Seeder
                 'status' => 'approved',
                 'booking_type' => 'requirement',
                 'total_price' => $scheduleMhs1->price,
-                'file_url' => 'https://res.cloudinary.com/dawn0omj0/image/upload/v1780116902/dummy_persyaratan.pdf', 
+                'file_url' => 'https://qcizbglhafqgrphobbly.supabase.co/storage/v1/object/public/Field-Image/booking-files/dummy_persyaratan.pdf', 
                 'is_attended' => true,
                 'attended_at' => now()->addDay()->setHour(9)->setMinute(15), 
                 'expires_at' => null,

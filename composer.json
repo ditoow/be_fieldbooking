@@ -7,7 +7,6 @@
     "license": "MIT",
     "require": {
         "php": "^8.3",
-        "cloudinary/cloudinary_php": "^3.1",
         "dedoc/scramble": "^0.13.20",
         "fpdf/fpdf": "^1.86",
         "laravel/framework": "^13.0",
