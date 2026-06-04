@@ -9,6 +9,7 @@
         "php": "^8.3",
         "dedoc/scramble": "^0.13.20",
         "fpdf/fpdf": "^1.86",
+        "intervention/image-laravel": "^4.0",
         "laravel/framework": "^13.0",
         "laravel/tinker": "^3.0",
         "midtrans/midtrans-php": "^2.6",

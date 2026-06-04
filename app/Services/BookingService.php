@@ -182,26 +182,8 @@ class BookingService
             }
             throw new \Exception('Batas waktu mengunggah berkas persyaratan (10 menit) telah habis.');
         }
-        
-        $extension = strtolower($file->getClientOriginalExtension());
-        $tempPath = $file->getRealPath();
-        $fileSize = filesize($tempPath);
-        $maxFileSize = 1048576;
 
-        if (in_array($extension, ['jpg', 'jpeg', 'png'])) {
-            $localTempPath = $this->compressImageToTemp($file);
-        } elseif ($extension === 'pdf' && $fileSize > $maxFileSize) {
-            $localTempPath = $this->compressPdfToTemp($tempPath);
-        } else {
-            $localTempPath = $tempPath;
-        }
-
-        $fileUrl = $this->uploadToSupabase($localTempPath);
-
-       
-        if ($localTempPath !== $tempPath && file_exists($localTempPath)) {
-            @unlink($localTempPath);
-        }
+        $fileUrl = $this->uploadDokumen($file);
 
         $booking->update([
             'file_url' => $fileUrl,
@@ -211,97 +193,15 @@ class BookingService
         return $booking;
     }
 
-    
-    protected function uploadToSupabase(string $filePath): string
+    public function uploadDokumen(\Illuminate\Http\UploadedFile $pdf): string
     {
-        $result = $this->supabaseService->upload($filePath, [
-            'asset_folder' => 'booking-files'
-        ]);
+        $filename = 'dokumen_' . uniqid() . '.pdf';
 
-        return $result['secure_url'];
-    }
-
-   
-    protected function compressImageToTemp($file): string
-    {
-        $tempPath = $file->getRealPath();
-        $extension = strtolower($file->getClientOriginalExtension());
-        
-        if ($extension === 'png') {
-            $image = @imagecreatefrompng($tempPath);
-        } else {
-            $image = @imagecreatefromjpeg($tempPath);
-        }
-
-        if (!$image) {
-            return $tempPath;
-        }
-
-        $tempJpg = tempnam(sys_get_temp_dir(), 'img_compressed_') . '.jpg';
-        $maxFileSize = 1048576; 
-        $quality = 85;
-
-        do {
-            imagejpeg($image, $tempJpg, $quality);
-            clearstatcache(true, $tempJpg);
-            $compressedSize = filesize($tempJpg);
-            $quality -= 10;
-        } while ($compressedSize > $maxFileSize && $quality >= 10);
-
-        imagedestroy($image);
-
-        return $tempJpg;
-    }
-
-    
-    protected function compressPdfToTemp(string $sourcePdfPath): string
-    {
-        $tempJpg = tempnam(sys_get_temp_dir(), 'pdf_page_') . '.jpg';
-        $compressedJpg = tempnam(sys_get_temp_dir(), 'pdf_compressed_') . '.jpg';
-        $tempPdf = tempnam(sys_get_temp_dir(), 'pdf_final_') . '.pdf';
-
-        try {
-            $imagick = new \Imagick();
-            $imagick->readImage($sourcePdfPath . '[0]'); 
-            $imagick->setImageFormat('jpg');
-            $imagick->writeImage($tempJpg);
-            $imagick->clear();
-            $imagick->destroy();
-
-            $image = @imagecreatefromjpeg($tempJpg);
-            if (!$image) {
-                throw new \Exception('Gagal memuat render gambar dari PDF.');
-            }
-
-            $maxFileSize = 1048576; 
-            $quality = 80;
-
-            do {
-                imagejpeg($image, $compressedJpg, $quality);
-                clearstatcache(true, $compressedJpg);
-                $compressedSize = filesize($compressedJpg);
-                $quality -= 10;
-            } while ($compressedSize > $maxFileSize && $quality >= 10);
-            
-            imagedestroy($image);
-
-            $pdf = class_exists('\Fpdf\Fpdf') ? new \Fpdf\Fpdf() : new \FPDF();
-            $pdf->AddPage();
-            $pdf->Image($compressedJpg, 10, 10, 190);
-            $pdf->Output('F', $tempPdf);
-
-            @unlink($tempJpg);
-            @unlink($compressedJpg);
-
-            return $tempPdf;
-
-        } catch (\Exception $e) {
-            @unlink($tempJpg);
-            @unlink($compressedJpg);
-            @unlink($tempPdf);
-
-            return $sourcePdfPath;
-        }
+        return $this->supabaseService->upload(
+            file: $pdf,
+            storagePath: "dokumen/{$filename}",
+            mimeType: 'application/pdf'
+        );
     }
 
     public function getAllBookings($filters = [], $perPage = 10)

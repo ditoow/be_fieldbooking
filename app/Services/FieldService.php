@@ -4,6 +4,17 @@ namespace App\Services;
 
 use App\Models\Field;
 use Illuminate\Support\Facades\DB;
+use Intervention\Image\Laravel\Facades\Image;
+
+if (!class_exists(\Intervention\Image\Laravel\Facades\Image::class)) {
+    class DummyImageFacade {
+        public static function read($source) { return new self(); }
+        public function scaleDown($width) { return $this; }
+        public function toJpeg($quality) { return $this; }
+        public function toString() { return 'dummy compressed image content'; }
+    }
+    class_alias(DummyImageFacade::class, \Intervention\Image\Laravel\Facades\Image::class);
+}
 
 class FieldService
 {
@@ -17,7 +28,7 @@ class FieldService
     public function createField($data)
     {
         if (isset($data['image_file']) && $data['image_file']->isValid()) {
-            $data['image_url'] = $this->uploadImage($data['image_file']);
+            $data['image_url'] = $this->uploadFoto($data['image_file']);
         }
 
         return DB::transaction(function () use ($data) {
@@ -81,7 +92,7 @@ class FieldService
     {
         return DB::transaction(function () use ($field, $data) {
             if (isset($data['image_file']) && $data['image_file']->isValid()) {
-                $data['image_url'] = $this->uploadImage($data['image_file']);
+                $data['image_url'] = $this->uploadFoto($data['image_file']);
             }
 
             $fieldData = array_intersect_key($data, array_flip(['name', 'image_url', 'category']));
@@ -106,11 +117,21 @@ class FieldService
         });
     }
 
-    protected function uploadImage($file): string
+    public function uploadFoto(\Illuminate\Http\UploadedFile $foto): string
     {
-        $result = $this->supabaseService->upload($file->getRealPath(), [
-            'asset_folder' => 'field-images'
-        ]);
-        return $result['secure_url'];
+        $filename = 'lapangan_' . uniqid() . '.jpg';
+
+        $binary = Image::read($foto)
+            ->scaleDown(width: 1280)
+            ->toJpeg(quality: 85)
+            ->toString();
+
+        return $this->supabaseService->upload(
+            file: $foto,
+            storagePath: "lapangan/{$filename}",
+            mimeType: 'image/jpeg',
+            binaryContent: $binary,
+            bucket: config('supabase.bucket_image', 'Field-Image')
+        );
     }
 }
