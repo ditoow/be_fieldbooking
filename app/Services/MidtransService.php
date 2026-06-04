@@ -70,4 +70,14 @@ class MidtransService
             return null;
         }
     }
+
+    public function cancelTransaction($transactionId)
+    {
+        try {
+            return Transaction::cancel($transactionId);
+        } catch (\Exception $e) {
+            \Log::error('Gagal membatalkan transaksi Midtrans secara langsung: ' . $e->getMessage());
+            return null;
+        }
+    }
 }

@@ -75,7 +75,7 @@ class UploadServiceTest extends TestCase
     public function test_user_can_upload_pdf_document_successfully(): void
     {
         Http::fake([
-            'https://qcizbglhafqgrphobbly.supabase.co/storage/v1/object/Field-Image/*' => Http::response(['message' => 'Success'], 201),
+            'https://qcizbglhafqgrphobbly.supabase.co/storage/v1/object/File-Document/*' => Http::response(['message' => 'Success'], 201),
         ]);
 
         $user = $this->createUser('umum');
@@ -88,7 +88,7 @@ class UploadServiceTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertJsonStructure(['message', 'url']);
-        $this->assertStringContainsString('/storage/v1/object/public/Field-Image/dokumen/', $response->json('url'));
+        $this->assertStringContainsString('/storage/v1/object/public/File-Document/dokumen/', $response->json('url'));
     }
 
     public function test_user_upload_document_validation(): void
@@ -115,7 +115,7 @@ class UploadServiceTest extends TestCase
     public function test_student_can_upload_requirement_file_directly_as_pdf(): void
     {
         Http::fake([
-            'https://qcizbglhafqgrphobbly.supabase.co/storage/v1/object/Field-Image/*' => Http::response(['message' => 'Success'], 201),
+            'https://qcizbglhafqgrphobbly.supabase.co/storage/v1/object/File-Document/*' => Http::response(['message' => 'Success'], 201),
         ]);
 
         $student = $this->createUser('mahasiswa');
@@ -157,6 +157,6 @@ class UploadServiceTest extends TestCase
 
         $response->assertStatus(200);
         $this->assertNotEmpty($response->json('data.file_url'));
-        $this->assertStringContainsString('/storage/v1/object/public/Field-Image/dokumen/', $response->json('data.file_url'));
+        $this->assertStringContainsString('/storage/v1/object/public/File-Document/dokumen/', $response->json('data.file_url'));
     }
 }

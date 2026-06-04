@@ -200,7 +200,9 @@ class BookingService
         return $this->supabaseService->upload(
             file: $pdf,
             storagePath: "dokumen/{$filename}",
-            mimeType: 'application/pdf'
+            mimeType: 'application/pdf',
+            binaryContent: null,
+            bucket: config('supabase.bucket_document', 'File-Document')
         );
     }
 
@@ -405,16 +407,12 @@ class BookingService
         $isMahasiswa = $user->hasRole('mahasiswa');
         $isUmum = $user->hasRole('umum');
 
-        if ($isMahasiswa) {
-            if (!in_array($booking->status, ['pending', 'approved'])) {
-                throw new \Exception('Hanya pemesanan aktif yang dapat dibatalkan.');
-            }
-        } elseif ($isUmum) {
-            if ($booking->status !== 'pending') {
-                throw new \Exception('Pesanan berbayar sudah tidak dapat dibatalkan secara manual karena sudah dibayar.');
-            }
-        } else {
+        if (!$isMahasiswa && !$isUmum) {
             throw new \Exception('Akun Anda tidak memiliki akses untuk membatalkan pesanan.');
+        }
+
+        if (!in_array($booking->status, ['pending', 'approved'])) {
+            throw new \Exception('Hanya pemesanan aktif yang dapat dibatalkan.');
         }
 
         foreach ($booking->schedules as $schedule) {
@@ -426,6 +424,11 @@ class BookingService
 
         if ($booking->status === 'cancelled') {
             throw new \Exception('Pemesanan ini sudah dibatalkan sebelumnya.');
+        }
+
+        // Jika pesanan berbayar masih pending (belum dibayar) dan punya ID transaksi Midtrans, batalkan di Midtrans
+        if ($booking->status === 'pending' && $booking->booking_type === 'paid' && $booking->qr_id) {
+            $this->midtransService->cancelTransaction($booking->qr_id);
         }
 
         return DB::transaction(function () use ($booking) {
