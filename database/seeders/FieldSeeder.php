@@ -59,7 +59,18 @@ class FieldSeeder extends Seeder
         ];
 
         foreach ($fields as $fieldData) {
-            Field::create($fieldData);
+            $field = Field::create([
+                'name' => $fieldData['name'],
+                'image_url' => $fieldData['image_url'],
+                'category' => $fieldData['category'],
+            ]);
+
+            $field->detail()->create([
+                'description' => $fieldData['description'],
+                'surface_type' => $fieldData['surface_type'],
+                'rating' => $fieldData['rating'],
+                'status' => $fieldData['status'],
+            ]);
         }
     }
 }

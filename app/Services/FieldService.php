@@ -20,8 +20,22 @@ class FieldService
             $data['image_url'] = $this->uploadImage($data['image_file']);
         }
 
-        $field = Field::create($data);
-        return $field;
+        return DB::transaction(function () use ($data) {
+            $field = Field::create([
+                'name' => $data['name'],
+                'image_url' => $data['image_url'] ?? null,
+                'category' => $data['category'],
+            ]);
+
+            $field->detail()->create([
+                'description' => $data['description'] ?? '',
+                'surface_type' => $data['surface_type'] ?? 'vinyl',
+                'rating' => $data['rating'] ?? 0.0,
+                'status' => $data['status'] ?? 'available',
+            ]);
+
+            return $field;
+        });
     }
 
     public function getAllFields($filters = [])
@@ -41,7 +55,9 @@ class FieldService
         });
 
         $query->when($filters['status'] ?? null, function ($q, $status){
-            return $q->where('status', $status);
+            return $q->whereHas('detail', function ($query) use ($status) {
+                $query->where('status', $status);
+            });
         });
         
         return $query->get();
@@ -68,9 +84,15 @@ class FieldService
                 $data['image_url'] = $this->uploadImage($data['image_file']);
             }
 
-            $field->update(array_intersect_key($data, array_flip([
-                'name', 'description', 'surface_type', 'image_url', 'category', 'status'
-            ])));
+            $fieldData = array_intersect_key($data, array_flip(['name', 'image_url', 'category']));
+            if (!empty($fieldData)) {
+                $field->update($fieldData);
+            }
+
+            $detailData = array_intersect_key($data, array_flip(['description', 'surface_type', 'rating', 'status']));
+            if (!empty($detailData)) {
+                $field->detail()->update($detailData);
+            }
 
             return $field->fresh();
         });
