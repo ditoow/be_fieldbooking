@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\Field;
-use App\Models\Schedule;
 use Illuminate\Database\Seeder;
 
 class FieldSeeder extends Seeder

@@ -3,11 +3,18 @@
 namespace App\Http\Controllers\Schedule;
 
 use App\Http\Controllers\Controller;
-use App\Models\Schedule;
+use App\Services\ScheduleService;
 use Illuminate\Http\Request;
 
 class ScheduleController extends Controller
 {
+    protected ScheduleService $scheduleService;
+
+    public function __construct(ScheduleService $scheduleService)
+    {
+        $this->scheduleService = $scheduleService;
+    }
+
     public function index(Request $request)
     {
         $request->validate([
@@ -16,31 +23,24 @@ class ScheduleController extends Controller
             'end_date' => 'required|date|after_or_equal:start_date',
         ]);
 
-        $fieldId = $request->field_id;
+        $fieldId = (int) $request->field_id;
         $startDate = $request->start_date;
         $endDate = $request->end_date;
 
-        $schedules = Schedule::where('field_id', $fieldId)
-            ->whereBetween('date', [$startDate, $endDate])
-            ->orderBy('date')
-            ->orderBy('start_time')
-            ->get()
-            ->groupBy('date');
-
         $result = [];
-        foreach ($schedules as $date => $slots) {
+        $current = \Carbon\Carbon::parse($startDate);
+        $end = \Carbon\Carbon::parse($endDate);
+
+        while ($current->lte($end)) {
+            $date = $current->format('Y-m-d');
+            $slots = $this->scheduleService->getAllSlots($fieldId, $date);
+
             $result[] = [
                 'date' => $date,
-                'slots' => $slots->map(function ($slot) {
-                    return [
-                        'id' => $slot->id,
-                        'start_time' => $slot->start_time,
-                        'end_time' => $slot->end_time,
-                        'price' => $slot->price,
-                        'status' => $slot->status,
-                    ];
-                }),
+                'slots' => $slots,
             ];
+
+            $current->addDay();
         }
 
         return response()->json(['data' => $result]);

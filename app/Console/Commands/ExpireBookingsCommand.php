@@ -19,10 +19,6 @@ class ExpireBookingsCommand extends Command
         foreach ($expiredBookings as $booking) {
             $booking->update(['status' => 'rejected']);
             
-            foreach ($booking->schedules as $schedule) {
-                $schedule->update(['status' => 'available']);
-            }
-            
             $this->info("Expired booking: {$booking->id}");
         }
 

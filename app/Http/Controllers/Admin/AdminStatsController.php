@@ -23,7 +23,7 @@ class AdminStatsController extends Controller
         $pendingVerifications = Booking::where('status', 'pending')->count();
         $verificationBadge = $pendingVerifications > 0 ? 'Penting' : 'Selesai';
 
-        $activeFields = Field::where('status', 'available')->count();
+        $activeFields = Field::whereHas('detail', fn($q) => $q->where('status', 'available'))->count();
 
         $currentMonthRevenue = Booking::where('status', 'approved')
             ->whereMonth('created_at', Carbon::now()->month)

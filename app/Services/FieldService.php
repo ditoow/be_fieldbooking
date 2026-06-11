@@ -53,14 +53,6 @@ class FieldService
     {
         $query = Field::query();
 
-        $query->withMin(['schedules as price_min' => function ($q) {
-            $q->where('status', 'available');
-        }], 'price');
-
-        $query->withMax(['schedules as price_max' => function ($q) {
-            $q->where('status', 'available');
-        }], 'price');
-
         $query->when($filters['category'] ?? null, function ($q, $category){
             return $q->where('category', $category);
         });
@@ -71,21 +63,19 @@ class FieldService
             });
         });
         
-        return $query->get();
+        return $query->get()->map(function ($field) {
+            $field->price_min = 40000;
+            $field->price_max = 50000;
+            return $field;
+        });
     }
 
     public function getFieldById($id)
     {
-        return Field::with(['schedules' => function ($q) {
-                $q->where('status', 'available')->orderBy('start_time', 'asc');
-            }])
-            ->withMin(['schedules as price_min' => function ($q) {
-                $q->where('status', 'available');
-            }], 'price')
-            ->withMax(['schedules as price_max' => function ($q) {
-                $q->where('status', 'available');
-            }], 'price')
-            ->findOrFail($id);
+        $field = Field::findOrFail($id);
+        $field->price_min = 40000;
+        $field->price_max = 50000;
+        return $field;
     }
 
     public function updateField(Field $field, array $data)

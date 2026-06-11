@@ -1,27 +1,26 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class Schedule extends Model
+class FieldMaintenance extends Model
 {
+    protected $table = 'field_maintenances';
+
     protected $fillable = [
         'field_id',
         'date',
         'start_time',
         'end_time',
-        'price',
+        'reason',
     ];
 
-    public function field()
+    public function field(): BelongsTo
     {
         return $this->belongsTo(Field::class, 'field_id');
     }
-
-    public function bookings()
-    {
-        return $this->belongsToMany(Booking::class, 'booking_details');
-    }
 }
-

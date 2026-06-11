@@ -4,43 +4,40 @@ namespace App\Services;
 
 use App\Models\Booking;
 use App\Models\BookingDetail;
+use App\Models\Field;
 use App\Models\Schedule;
 use App\Models\User;
 use App\Models\Reschedule;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 class BookingService
 {
     protected SupabaseService $supabaseService;
     protected MidtransService $midtransService;
+    protected ScheduleService $scheduleService;
 
-    public function __construct(SupabaseService $supabaseService, MidtransService $midtransService)
-    {
+    public function __construct(
+        SupabaseService $supabaseService,
+        MidtransService $midtransService,
+        ScheduleService $scheduleService
+    ) {
         $this->supabaseService = $supabaseService;
         $this->midtransService = $midtransService;
+        $this->scheduleService = $scheduleService;
     }
-    public function createBooking(User $user, array $scheduleIds)
+
+    public function createBooking(User $user, int $fieldId, string $date, array $timeSlots)
     {
         if ($user->isSuspended()) {
             throw new \Exception('Akun Anda ditangguhkan sementara dari pembuatan booking baru.');
         }
 
-        if (empty($scheduleIds)) {
+        if (empty($timeSlots)) {
             throw new \Exception('Anda harus memilih minimal satu slot jadwal.');
         }
 
-        $schedules = Schedule::whereIn('id', $scheduleIds)->get();
-
-        if ($schedules->count() !== count($scheduleIds)) {
-            throw new \Exception('Beberapa slot jadwal pilihan Anda tidak valid.');
-        }
-
-        foreach ($schedules as $schedule) {
-            if ($schedule->status === 'booked') {
-                throw new \Exception("Slot jadwal tanggal {$schedule->date} pukul {$schedule->start_time} sudah dibooking orang lain.");
-            }
-        }
+        // Validasi field ada
+        $field = Field::findOrFail($fieldId);
 
         $isMahasiswa = $user->hasRole('mahasiswa');
         $isUmum = $user->hasRole('umum');
@@ -49,42 +46,41 @@ class BookingService
             throw new \Exception('User must have role mahasiswa or umum');
         }
 
-        
-        if ($isMahasiswa && count($scheduleIds) > 3) {
+        if ($isMahasiswa && count($timeSlots) > 3) {
             throw new \Exception('Mahasiswa hanya diperbolehkan memesan maksimal 3 jam dalam satu pemesanan.');
         }
 
-
-        $fieldIds = $schedules->pluck('field_id')->unique();
-        if ($fieldIds->count() > 1) {
-            throw new \Exception('Semua slot jam yang dipesan harus berada di lapangan yang sama.');
+        // Validasi semua slot available
+        foreach ($timeSlots as $startTime) {
+            if (!$this->scheduleService->isSlotAvailable($fieldId, $date, $startTime)) {
+                throw new \Exception("Slot jadwal tanggal {$date} pukul {$startTime} tidak tersedia.");
+            }
         }
 
-
-        $dates = $schedules->pluck('date')->unique();
-        if ($dates->count() > 1) {
-            throw new \Exception('Semua slot jam yang dipesan harus berada di tanggal yang sama.');
+        // Hitung total harga
+        $totalPrice = 0;
+        foreach ($timeSlots as $startTime) {
+            $hour = (int) substr($startTime, 0, 2);
+            $totalPrice += ($hour >= 16) ? 50000 : 40000;
         }
 
-
-        $totalPrice = $schedules->sum('price');
-
-        $booking = DB::transaction(function () use ($user, $schedules, $isMahasiswa, $isUmum, $totalPrice) {
+        $booking = DB::transaction(function () use ($user, $fieldId, $date, $timeSlots, $isMahasiswa, $isUmum, $totalPrice) {
             $booking = Booking::create([
                 'user_id' => $user->id,
                 'status' => 'pending',
                 'booking_type' => $isUmum ? 'paid' : 'requirement',
-                'expires_at' => $isMahasiswa ? now()->addMinutes(10) : now()->addMinutes(30),
+                'expires_at' => $isMahasiswa ? now()->addMinutes(10) : now()->addMinutes(10),
                 'total_price' => $totalPrice,
             ]);
 
-            foreach ($schedules as $schedule) {
+            foreach ($timeSlots as $startTime) {
+                // Buat schedule record on-demand
+                $schedule = $this->scheduleService->createScheduleForBooking($fieldId, $date, $startTime);
+
                 BookingDetail::create([
                     'booking_id' => $booking->id,
                     'schedule_id' => $schedule->id,
                 ]);
-
-                $schedule->update(['status' => 'booked']);
             }
 
             return $booking;
@@ -102,15 +98,13 @@ class BookingService
             } catch (\Exception $e) {
                 DB::transaction(function () use ($booking) {
                     $booking->update(['status' => 'rejected']);
-                    foreach ($booking->schedules as $schedule) {
-                        $schedule->update(['status' => 'available']);
-                    }
                 });
                 throw $e;
             }
 
-            $firstSchedule = $schedules->sortBy('start_time')->first();
-            $lastSchedule = $schedules->sortBy('start_time')->last();
+            $booking->load('schedules.field');
+            $firstSchedule = $booking->schedules->sortBy('start_time')->first();
+            $lastSchedule = $booking->schedules->sortBy('start_time')->last();
             $fieldName = $firstSchedule->field->name ?? 'Lapangan';
             $startTime = $firstSchedule ? date('H:i', strtotime($firstSchedule->start_time)) : '';
             $endTime = $lastSchedule ? date('H:i', strtotime($lastSchedule->end_time)) : '';
@@ -178,7 +172,7 @@ class BookingService
 
         if ($booking->expires_at && $booking->expires_at < now()) {
             foreach ($booking->schedules as $schedule) {
-                $schedule->update(['status' => 'available']);
+                $schedule->delete();
             }
             throw new \Exception('Batas waktu mengunggah berkas persyaratan (10 menit) telah habis.');
         }
@@ -256,19 +250,11 @@ class BookingService
 
         if ($booking->expires_at && $booking->expires_at < now()) {
             $booking->update(['status' => 'rejected']);
-            foreach ($booking->schedules as $schedule) {
-                $schedule->update(['status' => 'available']);
-            }
             throw new \Exception('Booking has expired');
         }
 
         $booking = DB::transaction(function () use ($booking) {
             $booking->update(['status' => 'approved']);
-
-            foreach ($booking->schedules as $schedule) {
-                $schedule->update(['status' => 'booked']);
-            }
-
             return $booking;
         });
 
@@ -303,11 +289,6 @@ class BookingService
 
         $booking = DB::transaction(function () use ($booking) {
             $booking->update(['status' => 'rejected']);
-
-            foreach ($booking->schedules as $schedule) {
-                $schedule->update(['status' => 'available']);
-            }
-
             return $booking;
         });
 
@@ -342,7 +323,7 @@ class BookingService
             ->get();
     }
 
-    public function rescheduleBooking(User $user, $bookingId, $oldScheduleId, $newScheduleId)
+    public function rescheduleBooking(User $user, $bookingId, $oldScheduleId, int $fieldId, string $date, string $newTimeSlot)
     {
         $booking = Booking::with('schedules')->where('id', $bookingId)->where('user_id', $user->id)->firstOrFail();
 
@@ -352,9 +333,6 @@ class BookingService
 
         if (!in_array($booking->status, ['pending', 'approved'])) {
             throw new \Exception('Hanya pemesanan aktif yang dapat dipindahkan.');
-        }
-        if ((int) $oldScheduleId === (int) $newScheduleId) {
-            throw new \Exception('Jadwal baru tidak boleh sama dengan jadwal lama.');
         }
 
         $oldSchedule = $booking->schedules->where('id', $oldScheduleId)->first();
@@ -367,23 +345,24 @@ class BookingService
             throw new \Exception('Reschedule hanya dapat diajukan maksimal 2 jam sebelum jadwal dimulai.');
         }
 
-        $newSchedule = Schedule::findOrFail($newScheduleId);
-        if ($newSchedule->status === 'booked') {
-            throw new \Exception('Jadwal baru pilihan Anda sudah dibooking.');
+        // Cek slot baru available
+        if (!$this->scheduleService->isSlotAvailable($fieldId, $date, $newTimeSlot)) {
+            throw new \Exception('Jadwal baru pilihan Anda tidak tersedia.');
         }
 
-        return DB::transaction(function () use ($booking, $oldSchedule, $newSchedule) {
-            $oldSchedule->update(['status' => 'available']);
+        return DB::transaction(function () use ($booking, $oldSchedule, $fieldId, $date, $newTimeSlot) {
+            $oldScheduleId = $oldSchedule->id;
+
+            // Buat schedule baru on-demand
+            $newSchedule = $this->scheduleService->createScheduleForBooking($fieldId, $date, $newTimeSlot);
 
             BookingDetail::where('booking_id', $booking->id)
-                ->where('schedule_id', $oldSchedule->id)
+                ->where('schedule_id', $oldScheduleId)
                 ->update(['schedule_id' => $newSchedule->id]);
 
-            if ($booking->status === 'approved' || $booking->status === 'pending') {
-                $newSchedule->update(['status' => 'booked']);
-            }
-            $currentScheduleIds = $booking->schedules->pluck('id')->toArray();
-            $key = array_search($oldSchedule->id, $currentScheduleIds);
+            // Update total price
+            $currentScheduleIds = $booking->schedules()->pluck('schedules.id')->toArray();
+            $key = array_search($oldScheduleId, $currentScheduleIds);
             if ($key !== false) {
                 $currentScheduleIds[$key] = $newSchedule->id;
             }
@@ -392,7 +371,7 @@ class BookingService
 
             Reschedule::create([
                 'booking_id' => $booking->id,
-                'old_schedule_id' => $oldSchedule->id,
+                'old_schedule_id' => $oldScheduleId,
                 'new_schedule_id' => $newSchedule->id,
             ]);
 
@@ -426,18 +405,12 @@ class BookingService
             throw new \Exception('Pemesanan ini sudah dibatalkan sebelumnya.');
         }
 
-        // Jika pesanan berbayar masih pending (belum dibayar) dan punya ID transaksi Midtrans, batalkan di Midtrans
         if ($booking->status === 'pending' && $booking->booking_type === 'paid' && $booking->qr_id) {
             $this->midtransService->cancelTransaction($booking->qr_id);
         }
 
         return DB::transaction(function () use ($booking) {
             $booking->update(['status' => 'cancelled']);
-
-            foreach ($booking->schedules as $schedule) {
-                $schedule->update(['status' => 'available']);
-            }
-
             return $booking;
         });
     }
@@ -453,10 +426,6 @@ class BookingService
                 'status' => 'approved',
                 'expires_at' => null,
             ]);
-
-            foreach ($booking->schedules as $schedule) {
-                $schedule->update(['status' => 'booked']);
-            }
 
             return $booking;
         });
@@ -486,11 +455,6 @@ class BookingService
         $booking = DB::transaction(function () use ($booking, $reason) {
             $status = $reason === 'cancel' ? 'cancelled' : 'rejected';
             $booking->update(['status' => $status]);
-
-            foreach ($booking->schedules as $schedule) {
-                $schedule->update(['status' => 'available']);
-            }
-
             return $booking;
         });
 

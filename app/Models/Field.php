@@ -28,6 +28,11 @@ class Field extends Model
         return $this->hasMany(Schedule::class, 'field_id');
     }
 
+    public function maintenances(): HasMany
+    {
+        return $this->hasMany(FieldMaintenance::class, 'field_id');
+    }
+
     public function getDescriptionAttribute(): ?string
     {
         return $this->detail?->description;

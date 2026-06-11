@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\AdminFieldController;
 use App\Http\Controllers\Admin\AdminBookingController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\AdminStatsController;
+use App\Http\Controllers\Admin\AdminMaintenanceController;
 use App\Http\Controllers\Notification\NotificationController;
 use App\Http\Controllers\Payment\PaymentController;
 use App\Http\Controllers\UploadController;
@@ -47,6 +48,12 @@ Route::middleware('auth:api')->group(function () {
         Route::patch('/admin/users/{id}/status', [AdminUserController::class, 'updateUserStatus']);
         Route::get('/admin/stats', [AdminStatsController::class, 'getStats']);
         Route::get('/admin/users', [AdminUserController::class, 'indexUsers']);
+
+        // Maintenance routes
+        Route::get('/admin/fields/{id}/maintenances', [AdminMaintenanceController::class, 'index']);
+        Route::post('/admin/fields/{id}/maintenances', [AdminMaintenanceController::class, 'store']);
+        Route::delete('/admin/maintenances/{id}', [AdminMaintenanceController::class, 'destroy']);
+
         // Route::post('/upload/foto', [UploadController::class, 'uploadFoto']);
     });
 

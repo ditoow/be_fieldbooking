@@ -20,14 +20,21 @@ class BookingController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'schedule_ids' => 'required|array|min:1',
-            'schedule_ids.*' => 'exists:schedules,id',
+            'field_id' => 'required|exists:fields,id',
+            'date' => 'required|date|after_or_equal:today',
+            'time_slots' => 'required|array|min:1',
+            'time_slots.*' => 'string|regex:/^\d{2}:00$/',
         ]);
 
         $user = Auth::guard('api')->user();
 
         try {
-            $booking = $this->bookingService->createBooking($user, $request->schedule_ids);
+            $booking = $this->bookingService->createBooking(
+                $user,
+                (int) $request->field_id,
+                $request->date,
+                $request->time_slots
+            );
             return response()->json([
                 'message' => 'Booking created successfully',
                 'data' => new BookingResource($booking->load(['schedules.field', 'user'])),
@@ -89,7 +96,9 @@ class BookingController extends Controller
     {
         $request->validate([
             'old_schedule_id' => 'required|exists:schedules,id',
-            'new_schedule_id' => 'required|exists:schedules,id',
+            'field_id' => 'required|exists:fields,id',
+            'date' => 'required|date|after_or_equal:today',
+            'new_time_slot' => 'required|string|regex:/^\d{2}:00$/',
         ]);
 
         $user = Auth::guard('api')->user();
@@ -99,7 +108,9 @@ class BookingController extends Controller
                 $user,
                 $id,
                 $request->old_schedule_id,
-                $request->new_schedule_id
+                (int) $request->field_id,
+                $request->date,
+                $request->new_time_slot
             );
             return response()->json([
                 'message' => 'Jadwal pemesanan berhasil dipindahkan!',

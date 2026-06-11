@@ -11,13 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('schedules', function (Blueprint $table) {
+        Schema::create('field_maintenances', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('field_id')->constrained('fields');
+            $table->foreignId('field_id')->constrained('fields')->cascadeOnDelete();
             $table->date('date');
-            $table->time('start_time');
-            $table->time('end_time');
-            $table->integer('price')->default(0);
+            $table->time('start_time')->nullable();  // null = seharian
+            $table->time('end_time')->nullable();    // null = seharian
+            $table->string('reason')->nullable();
             $table->timestamps();
 
             $table->unique(['field_id', 'date', 'start_time']);
@@ -29,6 +29,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('schedules');
+        Schema::dropIfExists('field_maintenances');
     }
 };
