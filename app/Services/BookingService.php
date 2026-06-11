@@ -9,6 +9,7 @@ use App\Models\Schedule;
 use App\Models\User;
 use App\Models\Reschedule;
 use Illuminate\Support\Facades\DB;
+use App\Models\ActivityLog;
 
 class BookingService
 {
@@ -116,6 +117,13 @@ class BookingService
                 $booking->id
             ));
         }
+
+        ActivityLog::create([
+            'type' => 'info',
+            'title' => 'Booking Baru',
+            'description' => "Booking {$booking->booking_number} dibuat oleh {$user->name} untuk tanggal {$date}.",
+            'user_name' => $user->name,
+        ]);
 
         return $booking;
     }
@@ -278,6 +286,13 @@ class BookingService
             $booking->id
         ));
 
+        ActivityLog::create([
+            'type' => 'success',
+            'title' => 'Booking Dikonfirmasi',
+            'description' => "Pemesanan {$booking->booking_number} telah disetujui oleh Admin.",
+            'user_name' => $booking->user->name,
+        ]);
+
         return $booking;
     }
 
@@ -299,6 +314,13 @@ class BookingService
             $booking->id
         ));
 
+        ActivityLog::create([
+            'type' => 'danger',
+            'title' => 'Pemesanan Ditolak',
+            'description' => "Pemesanan {$booking->booking_number} ditolak oleh Admin.",
+            'user_name' => $booking->user->name,
+        ]);
+
         return $booking;
     }
 
@@ -311,6 +333,13 @@ class BookingService
         $booking->update([
             'is_attended' => true,
             'attended_at' => now(),
+        ]);
+
+        ActivityLog::create([
+            'type' => 'success',
+            'title' => 'Kehadiran Dicatat',
+            'description' => "User {$booking->user->name} tercatat menghadiri sesi booking {$booking->booking_number}.",
+            'user_name' => $booking->user->name,
         ]);
 
         return $booking;
@@ -409,6 +438,13 @@ class BookingService
             $this->midtransService->cancelTransaction($booking->qr_id);
         }
 
+        ActivityLog::create([
+            'type' => 'warning',
+            'title' => 'Pembatalan',
+            'description' => "Pemesanan {$booking->booking_number} dibatalkan oleh pengguna.",
+            'user_name' => $user->name,
+        ]);
+
         return DB::transaction(function () use ($booking) {
             $booking->update(['status' => 'cancelled']);
             return $booking;
@@ -443,6 +479,13 @@ class BookingService
             $booking->id
         ));
 
+        ActivityLog::create([
+            'type' => 'success',
+            'title' => 'Booking Dikonfirmasi',
+            'description' => "Pembayaran untuk pemesanan {$booking->booking_number} lunas (settlement).",
+            'user_name' => $booking->user->name,
+        ]);
+
         return $booking;
     }
 
@@ -464,6 +507,13 @@ class BookingService
             'warning',
             $booking->id
         ));
+
+        ActivityLog::create([
+            'type' => 'danger',
+            'title' => 'Pemesanan Gagal',
+            'description' => "Pemesanan {$booking->booking_number} gagal/expired dalam proses pembayaran.",
+            'user_name' => $booking->user->name,
+        ]);
 
         return $booking;
     }

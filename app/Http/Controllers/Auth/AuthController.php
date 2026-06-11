@@ -70,6 +70,13 @@ class AuthController extends Controller
             $user->update(['user_number' => $userNumber]);
         }
 
+        \App\Models\ActivityLog::create([
+            'type' => 'info',
+            'title' => 'User Baru',
+            'description' => "Pengguna baru {$user->name} ({$user->email}) telah terdaftar di sistem.",
+            'user_name' => $user->name,
+        ]);
+
         return response()->json([
             'message' => 'User berhasil didaftarkan!',
             'user' => $user

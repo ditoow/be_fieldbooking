@@ -44,7 +44,15 @@ class AdminStatsController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Dashboard statistics retrieved successfully',
+            'total_users' => \App\Models\User::count(),
+            'total_fields' => Field::count(),
+            'total_bookings' => Booking::count(),
+            'pending_bookings' => Booking::where('status', 'pending')->count(),
             'data' => [
+                'total_users' => \App\Models\User::count(),
+                'total_fields' => Field::count(),
+                'total_bookings' => Booking::count(),
+                'pending_bookings' => Booking::where('status', 'pending')->count(),
                 'today_bookings' => [
                     'value' => $todayBookings,
                     'trend_percentage' => $bookingTrend,
@@ -66,6 +74,57 @@ class AdminStatsController extends Controller
                     'label' => 'Pendapatan Bulan Ini'
                 ]
             ]
+        ]);
+    }
+
+    public function getRevenueTrend(): JsonResponse
+    {
+        $startOfWeek = Carbon::now()->startOfWeek();
+        
+        $days = [
+            'SENIN' => 0,
+            'SELASA' => 0,
+            'RABU' => 0,
+            'KAMIS' => 0,
+            'JUMAT' => 0,
+            'SABTU' => 0,
+            'MINGGU' => 0,
+        ];
+
+        $bookings = Booking::where('status', 'approved')
+            ->whereBetween('created_at', [$startOfWeek, Carbon::now()->endOfWeek()])
+            ->get();
+
+        $dayMap = [
+            1 => 'SENIN',
+            2 => 'SELASA',
+            3 => 'RABU',
+            4 => 'KAMIS',
+            5 => 'JUMAT',
+            6 => 'SABTU',
+            0 => 'MINGGU',
+        ];
+
+        foreach ($bookings as $booking) {
+            $dayOfWeek = $booking->created_at->dayOfWeek;
+            $dayName = $dayMap[$dayOfWeek] ?? null;
+            if ($dayName && isset($days[$dayName])) {
+                $days[$dayName] += $booking->total_price;
+            }
+        }
+
+        $formattedData = [];
+        foreach ($days as $name => $total) {
+            $formattedData[] = [
+                'name' => $name,
+                'realisasi' => $total,
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Revenue trend retrieved successfully',
+            'data' => $formattedData,
         ]);
     }
 }

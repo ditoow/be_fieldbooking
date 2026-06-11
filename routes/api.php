@@ -11,6 +11,8 @@ use App\Http\Controllers\Admin\AdminBookingController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\AdminStatsController;
 use App\Http\Controllers\Admin\AdminMaintenanceController;
+use App\Http\Controllers\Admin\AdminActivityLogController;
+use App\Http\Controllers\Admin\AdminReportController;
 use App\Http\Controllers\Notification\NotificationController;
 use App\Http\Controllers\Payment\PaymentController;
 use App\Http\Controllers\UploadController;
@@ -47,6 +49,11 @@ Route::middleware('auth:api')->group(function () {
         Route::patch('/admin/bookings/{id}/attend', [AdminBookingController::class, 'attendBooking']);
         Route::patch('/admin/users/{id}/status', [AdminUserController::class, 'updateUserStatus']);
         Route::get('/admin/stats', [AdminStatsController::class, 'getStats']);
+        Route::get('/admin/stats/revenue-trend', [AdminStatsController::class, 'getRevenueTrend']);
+        Route::get('/admin/activity-logs', [AdminActivityLogController::class, 'index']);
+        Route::get('/admin/reports/transactions', [AdminReportController::class, 'getReportTransactions']);
+        Route::get('/admin/reports/demographics', [AdminReportController::class, 'getReportDemographics']);
+        Route::get('/admin/reports/pdf-data', [AdminReportController::class, 'getPdfReportData']);
         Route::get('/admin/users', [AdminUserController::class, 'indexUsers']);
 
         // Maintenance routes
