@@ -19,7 +19,7 @@ echo "Caching views..."
 php artisan view:cache
 
 echo "Running migrations..."
-php artisan migrate --force --isolated
+php artisan migrate --force --isolated || echo "Migration skipped (database not ready)"
 
 echo "Starting Apache..."
 exec apache2-foreground
