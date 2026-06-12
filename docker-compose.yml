@@ -1,0 +1,137 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: be_fieldbooking:latest
+    container_name: fieldbooking-app
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      APP_ENV: production
+      APP_DEBUG: false
+      APP_KEY: ${APP_KEY}
+      APP_URL: ${APP_URL:-http://localhost:8080}
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE:-fieldbooking}
+      DB_USERNAME: ${DB_USERNAME:-fieldbooking}
+      DB_PASSWORD: ${DB_PASSWORD:-fieldbooking}
+      QUEUE_CONNECTION: database
+      CACHE_STORE: database
+      SESSION_DRIVER: database
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_TTL: 3600
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_KEY: ${SUPABASE_KEY}
+      SUPABASE_BUCKET_IMAGE: ${SUPABASE_BUCKET_IMAGE:-Field-Image}
+      SUPABASE_BUCKET_DOCUMENT: ${SUPABASE_BUCKET_DOCUMENT:-File-Document}
+    volumes:
+      - app-storage:/var/www/html/storage
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - fieldbooking-network
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: be_fieldbooking:latest
+    container_name: fieldbooking-worker
+    restart: unless-stopped
+    command: php artisan queue:work --queue=default --sleep=3 --tries=3 --max-time=3600
+    environment:
+      APP_ENV: production
+      APP_DEBUG: false
+      APP_KEY: ${APP_KEY}
+      APP_URL: ${APP_URL:-http://localhost:8080}
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE:-fieldbooking}
+      DB_USERNAME: ${DB_USERNAME:-fieldbooking}
+      DB_PASSWORD: ${DB_PASSWORD:-fieldbooking}
+      QUEUE_CONNECTION: database
+      CACHE_STORE: database
+      SESSION_DRIVER: database
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_TTL: 3600
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_KEY: ${SUPABASE_KEY}
+    volumes:
+      - app-storage:/var/www/html/storage
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - fieldbooking-network
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: be_fieldbooking:latest
+    container_name: fieldbooking-scheduler
+    restart: unless-stopped
+    command: php artisan schedule:work
+    environment:
+      APP_ENV: production
+      APP_DEBUG: false
+      APP_KEY: ${APP_KEY}
+      APP_URL: ${APP_URL:-http://localhost:8080}
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE:-fieldbooking}
+      DB_USERNAME: ${DB_USERNAME:-fieldbooking}
+      DB_PASSWORD: ${DB_PASSWORD:-fieldbooking}
+      QUEUE_CONNECTION: database
+      CACHE_STORE: database
+      SESSION_DRIVER: database
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_TTL: 3600
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_KEY: ${SUPABASE_KEY}
+    volumes:
+      - app-storage:/var/www/html/storage
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - fieldbooking-network
+
+  db:
+    image: mysql:8.0
+    container_name: fieldbooking-db
+    restart: unless-stopped
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-fieldbooking}
+      MYSQL_USER: ${DB_USERNAME:-fieldbooking}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-fieldbooking}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - fieldbooking-network
+
+volumes:
+  app-storage:
+    driver: local
+  db-data:
+    driver: local
+
+networks:
+  fieldbooking-network:
+    driver: bridge
