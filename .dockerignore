@@ -39,7 +39,6 @@ phpunit.xml
 package.json
 package-lock.json
 vite.config.js
-composer.lock
 skills-lock.json
 README.md
 tmp
