@@ -5,9 +5,8 @@
 .env.production
 .gitattributes
 .antigravitycli
-.agents
+.agents/*
 .dockerignore
-Dockerfile
 docker-compose.yml
 docker-compose*.yml
 node_modules
