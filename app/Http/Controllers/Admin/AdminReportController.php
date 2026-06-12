@@ -124,7 +124,7 @@ class AdminReportController extends Controller
         $totalUsers = User::count();
 
         // Hitung mahasiswa (dengan role mahasiswa)
-        $studentCount = User::role('mahasiswa')->count();
+        $studentCount = User::role('mahasiswa', 'web')->count();
         $publicCount = $totalUsers - $studentCount;
 
         return response()->json([
@@ -195,7 +195,9 @@ class AdminReportController extends Controller
                 ->count();
 
             $bookedSlots = Schedule::where('field_id', $field->id)
-                ->where('status', 'booked')
+                ->whereHas('bookings', function ($query) {
+                    $query->whereIn('status', ['pending', 'approved']);
+                })
                 ->whereMonth('date', $currentMonth)
                 ->whereYear('date', $currentYear)
                 ->count();
