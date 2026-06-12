@@ -43,6 +43,10 @@ ENV APACHE_DOCUMENT_ROOT /var/www/html/public
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
 
+# Configure Apache to listen on port 3000
+RUN sed -i 's/Listen 80/Listen 3000/g' /etc/apache2/ports.conf \
+    && sed -i 's/<VirtualHost \*:80>/<VirtualHost \*:3000>/g' /etc/apache2/sites-available/*.conf
+
 # Copy custom PHP config
 COPY docker/php.ini /usr/local/etc/php/conf.d/app.ini
 
@@ -62,8 +66,8 @@ RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cac
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost/up || exit 1
+    CMD curl -f http://localhost:3000/up || exit 1
 
-EXPOSE 80
+EXPOSE 3000
 
 ENTRYPOINT ["docker-entrypoint"]
