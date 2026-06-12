@@ -25,12 +25,13 @@ RUN apt-get update && apt-get install -y \
     libpng-dev \
     libjpeg-dev \
     libfreetype6-dev \
+    libpq-dev \
     zip \
     unzip \
     git \
     curl \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install pdo_mysql gd bcmath opcache \
+    && docker-php-ext-install pdo_mysql pdo_pgsql pgsql gd bcmath opcache \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -61,7 +62,7 @@ RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cac
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost/health || exit 1
+    CMD curl -f http://localhost/up || exit 1
 
 EXPOSE 80
 
