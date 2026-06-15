@@ -17,7 +17,7 @@ class NotificationController extends Controller
         return NotificationResource::collection($notifications);
     }
 
-    public function read($id)
+    public function read(string $id)
     {
         $user = Auth::guard('api')->user();
         $notification = $user->notifications()->where('id', $id)->first();

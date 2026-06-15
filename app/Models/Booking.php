@@ -79,12 +79,12 @@ class Booking extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    public function scopePending($query)
+    public function scopePending(\Illuminate\Database\Eloquent\Builder $query)
     {
         return $query->where('status', 'pending');
     }
 
-    public function scopeExpired($query)
+    public function scopeExpired(\Illuminate\Database\Eloquent\Builder $query)
     {
         return $query->where('status', 'pending')
             ->where('expires_at', '<', now());

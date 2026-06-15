@@ -139,7 +139,7 @@ class BookingService
         return $query->orderBy('created_at', 'desc')->paginate($perPage);
     }
 
-    public function getBookingById($bookingId, User $user)
+    public function getBookingById(int $bookingId, User $user)
     {
         $this->cleanupExpiredBookings();
 
@@ -169,7 +169,7 @@ class BookingService
         return $booking;
     }
 
-    public function uploadFile(Booking $booking, $file)
+    public function uploadFile(Booking $booking, \Illuminate\Http\UploadedFile $file)
     {
         if ($booking->booking_type !== 'requirement') {
             throw new \Exception('This method is only available for student requirement bookings.');
@@ -394,7 +394,7 @@ class BookingService
             ->get();
     }
 
-    public function rescheduleBooking(User $user, $bookingId, $oldScheduleId, int $fieldId, string $date, string $newTimeSlot)
+    public function rescheduleBooking(User $user, int $bookingId, int $oldScheduleId, int $fieldId, string $date, string $newTimeSlot)
     {
         $booking = Booking::with('schedules')->where('id', $bookingId)->where('user_id', $user->id)->firstOrFail();
 
@@ -427,7 +427,7 @@ class BookingService
             // Buat schedule baru on-demand
             $newSchedule = $this->scheduleService->createScheduleForBooking($fieldId, $date, $newTimeSlot);
 
-            BookingDetail::where('booking_id', $booking->id)
+            BookingDetail::query()->where('booking_id', $booking->id)
                 ->where('schedule_id', $oldScheduleId)
                 ->update(['schedule_id' => $newSchedule->id]);
 
@@ -437,7 +437,8 @@ class BookingService
             if ($key !== false) {
                 $currentScheduleIds[$key] = $newSchedule->id;
             }
-            $newTotalPrice = Schedule::whereIn('id', $currentScheduleIds)->sum('price');
+            $schedules = Schedule::query()->findMany($currentScheduleIds);
+            $newTotalPrice = $schedules->sum('price');
             $booking->update(['total_price' => $newTotalPrice]);
 
             Reschedule::create([
@@ -450,7 +451,7 @@ class BookingService
         });
     }
 
-    public function cancelBooking(User $user, $bookingId)
+    public function cancelBooking(User $user, int $bookingId)
     {
         $booking = Booking::with('schedules')->where('id', $bookingId)->where('user_id', $user->id)->firstOrFail();
 

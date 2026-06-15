@@ -7,6 +7,7 @@ use Midtrans\CoreApi;
 use Midtrans\Notification;
 use Midtrans\Transaction;
 use App\Models\Booking;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class MidtransService
@@ -68,7 +69,7 @@ class MidtransService
         );
 
         if ($notification->signature_key !== $computedSignature) {
-            \Log::warning('Midtrans signature verification failed', [
+            Log::warning('Midtrans signature verification failed', [
                 'expected' => $computedSignature,
                 'received' => $notification->signature_key,
             ]);
@@ -78,22 +79,22 @@ class MidtransService
         return $notification;
     }
 
-    public function checkTransactionStatus($transactionId)
+    public function checkTransactionStatus(string $transactionId)
     {
         try {
             return Transaction::status($transactionId);
         } catch (\Exception $e) {
-            \Log::error('Failed to check Midtrans status directly: ' . $e->getMessage());
+            Log::error('Failed to check Midtrans status directly: ' . $e->getMessage());
             return null;
         }
     }
 
-    public function cancelTransaction($transactionId)
+    public function cancelTransaction(string $transactionId)
     {
         try {
             return Transaction::cancel($transactionId);
         } catch (\Exception $e) {
-            \Log::error('Failed to cancel Midtrans transaction directly: ' . $e->getMessage());
+            Log::error('Failed to cancel Midtrans transaction directly: ' . $e->getMessage());
             return null;
         }
     }

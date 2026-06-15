@@ -8,6 +8,7 @@ use App\Services\BookingService;
 use App\Services\MidtransService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class PaymentController extends Controller
 {
@@ -22,7 +23,7 @@ class PaymentController extends Controller
 
     public function handleWebhook(Request $request): JsonResponse
     {
-        \Log::info('Midtrans Webhook Received. Payload: ' . json_encode($request->all()));
+        Log::info('Midtrans Webhook Received. Payload: ' . json_encode($request->all()));
         try {
             $notification = $this->midtransService->handleNotification();
             
@@ -30,7 +31,7 @@ class PaymentController extends Controller
             $orderId = $notification->order_id ?? null;
             $fraudStatus = $notification->fraud_status ?? null;
 
-            \Log::info("Parsed Midtrans Notification: order_id={$orderId}, transaction_status={$transactionStatus}, fraud_status={$fraudStatus}");
+            Log::info("Parsed Midtrans Notification: order_id={$orderId}, transaction_status={$transactionStatus}, fraud_status={$fraudStatus}");
 
             $booking = Booking::with(['schedules.field', 'user'])
                 ->where('booking_number', $orderId)
@@ -47,20 +48,20 @@ class PaymentController extends Controller
             }
 
             if (!$booking) {
-                \Log::warning("Midtrans Webhook: Booking not found for order_id={$orderId}");
+                Log::warning("Midtrans Webhook: Booking not found for order_id={$orderId}");
                 return response()->json(['message' => 'Booking not found'], 404);
             }
 
             if ($transactionStatus == 'capture') {
                 if ($fraudStatus == 'accept') {
-                    \Log::info("Approving booking ID {$booking->id} (capture-accept)");
+                    Log::info("Approving booking ID {$booking->id} (capture-accept)");
                     $this->bookingService->approvePaidBooking($booking);
                 }
             } else if ($transactionStatus == 'settlement') {
-                \Log::info("Approving booking ID {$booking->id} (settlement)");
+                Log::info("Approving booking ID {$booking->id} (settlement)");
                 $this->bookingService->approvePaidBooking($booking);
             } else if ($transactionStatus == 'cancel' || $transactionStatus == 'deny' || $transactionStatus == 'expire') {
-                \Log::info("Failing booking ID {$booking->id} (status={$transactionStatus})");
+                Log::info("Failing booking ID {$booking->id} (status={$transactionStatus})");
                 $this->bookingService->failPaidBooking($booking, $transactionStatus);
             }
 
@@ -68,7 +69,7 @@ class PaymentController extends Controller
                 'message' => 'Webhook handled successfully'
             ]);
         } catch (\Exception $e) {
-            \Log::error('Midtrans Notification Error: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+            Log::error('Midtrans Notification Error: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
             return response()->json([
                 'message' => 'Internal server error'
             ], 500);

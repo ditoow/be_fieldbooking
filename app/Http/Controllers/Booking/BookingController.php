@@ -13,7 +13,7 @@ use Illuminate\Http\Request;
 
 class BookingController extends Controller
 {
-    protected $bookingService;
+    protected BookingService $bookingService;
 
     public function __construct(BookingService $bookingService)
     {
@@ -52,7 +52,7 @@ class BookingController extends Controller
         return BookingResource::collection($bookings);
     }
 
-    public function show($id)
+    public function show(int $id)
     {
         $user = Auth::guard('api')->user();
 
@@ -66,7 +66,7 @@ class BookingController extends Controller
         }
     }
 
-    public function upload(UploadDocumentRequest $request, $id)
+    public function upload(UploadDocumentRequest $request, int $id)
     {
         $user = Auth::guard('api')->user();
 
@@ -85,7 +85,7 @@ class BookingController extends Controller
         }
     }
 
-    public function reschedule(RescheduleBookingRequest $request, $id)
+    public function reschedule(RescheduleBookingRequest $request, int $id)
     {
         $user = Auth::guard('api')->user();
 
@@ -109,7 +109,7 @@ class BookingController extends Controller
         }
     }
 
-    public function cancel($id)
+    public function cancel(int $id)
     {
         $user = Auth::guard('api')->user();
 

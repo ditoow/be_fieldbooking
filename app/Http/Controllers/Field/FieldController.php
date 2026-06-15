@@ -10,7 +10,7 @@ use App\Services\FieldService;
 
 class FieldController extends Controller
 {
-    protected $fieldService;
+    protected FieldService $fieldService;
 
     public function __construct(FieldService $fieldService)
     {
@@ -23,7 +23,7 @@ class FieldController extends Controller
         return FieldResource::collection($fields);
     }
 
-    public function show($id)
+    public function show(int $id)
     {
         $field = $this->fieldService->getFieldById($id);
         return new FieldResource($field);

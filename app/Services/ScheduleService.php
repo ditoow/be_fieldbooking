@@ -18,7 +18,7 @@ class ScheduleService
         $field = Field::with('detail')->findOrFail($fieldId);
 
         // Cek apakah tanggal ini full day maintenance
-        $isFullDayMaintenance = FieldMaintenance::where('field_id', $fieldId)
+        $isFullDayMaintenance = FieldMaintenance::query()->where('field_id', $fieldId)
             ->where('date', $date)
             ->whereNull('start_time')
             ->exists();
@@ -41,7 +41,7 @@ class ScheduleService
         $maintenanceSlots = $this->getMaintenanceSlots($fieldId, $date);
 
         // Ambil jam-jam yang sudah dibooking dengan booking aktif (pending/approved)
-        $bookedSlots = Schedule::where('field_id', $fieldId)
+        $bookedSlots = Schedule::query()->where('field_id', $fieldId)
             ->where('date', $date)
             ->whereHas('bookings', function ($query) {
                 $query->where(function ($q) {
@@ -88,7 +88,7 @@ class ScheduleService
     public function isSlotAvailable(int $fieldId, string $date, string $startTime): bool
     {
         // Cek full day maintenance
-        $isFullDayMaintenance = FieldMaintenance::where('field_id', $fieldId)
+        $isFullDayMaintenance = FieldMaintenance::query()->where('field_id', $fieldId)
             ->where('date', $date)
             ->whereNull('start_time')
             ->exists();
@@ -104,7 +104,7 @@ class ScheduleService
         }
 
         // Cek sudah dibooking (aktif)
-        $isBooked = Schedule::where('field_id', $fieldId)
+        $isBooked = Schedule::query()->where('field_id', $fieldId)
             ->where('date', $date)
             ->where('start_time', $startTime)
             ->whereHas('bookings', function ($query) {
@@ -132,7 +132,7 @@ class ScheduleService
         $hour = (int) substr($startTime, 0, 2);
 
         // Cek maintenance (tidak perlu lock karena jarang berubah)
-        $isMaintenance = FieldMaintenance::where('field_id', $fieldId)
+        $isMaintenance = FieldMaintenance::query()->where('field_id', $fieldId)
             ->where('date', $date)
             ->where(function ($q) use ($startTime) {
                 $q->whereNull('start_time')
@@ -146,7 +146,7 @@ class ScheduleService
         }
 
         // Lock jadwal untuk cegah race condition
-        $existing = Schedule::where('field_id', $fieldId)
+        $existing = Schedule::query()->where('field_id', $fieldId)
             ->where('date', $date)
             ->where('start_time', $startTime)
             ->lockForUpdate()
@@ -179,7 +179,7 @@ class ScheduleService
      */
     protected function getMaintenanceSlots(int $fieldId, string $date): array
     {
-        $maintenances = FieldMaintenance::where('field_id', $fieldId)
+        $maintenances = FieldMaintenance::query()->where('field_id', $fieldId)
             ->where('date', $date)
             ->whereNotNull('start_time')
             ->get();

@@ -16,7 +16,7 @@ class FieldService
         $this->supabaseService = $supabaseService;
     }
 
-    public function createField($data)
+    public function createField(array $data)
     {
         if (isset($data['image_file']) && $data['image_file']->isValid()) {
             $data['image_url'] = $this->uploadFoto($data['image_file'])['url'];
@@ -61,7 +61,7 @@ class FieldService
         });
     }
 
-    public function getFieldById($id)
+    public function getFieldById(int $id)
     {
         $field = Field::with('detail')->findOrFail($id);
         $field->price_min = config('pricing.before_16');
@@ -92,7 +92,7 @@ class FieldService
 
     public function deleteField(Field $field)
     {
-        $field->delete();
+        Field::destroy($field->id);
     }
 
     public function uploadFoto(\Illuminate\Http\UploadedFile $foto): array
