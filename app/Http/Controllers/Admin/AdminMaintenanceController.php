@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\StoreMaintenanceRequest;
 use App\Models\Field;
 use App\Models\FieldMaintenance;
-use Illuminate\Http\Request;
 
 class AdminMaintenanceController extends Controller
 {
@@ -29,35 +29,29 @@ class AdminMaintenanceController extends Controller
     /**
      * Set tanggal/jam maintenance untuk field.
      */
-    public function store(Request $request, $fieldId)
+    public function store(StoreMaintenanceRequest $request, $fieldId)
     {
         $field = Field::findOrFail($fieldId);
-
-        $request->validate([
-            'date' => 'required|date|after_or_equal:today',
-            'start_time' => 'nullable|date_format:H:i',
-            'end_time' => 'nullable|date_format:H:i|after:start_time',
-            'reason' => 'nullable|string|max:255',
-        ]);
+        $validated = $request->validated();
 
         // Jika start_time dan end_time null → full day maintenance
         // Jika keduanya ada → partial maintenance
-        if (($request->start_time && !$request->end_time) || (!$request->start_time && $request->end_time)) {
+        if (($validated['start_time'] && !$validated['end_time']) || (!$validated['start_time'] && $validated['end_time'])) {
             return response()->json([
-                'message' => 'start_time dan end_time harus diisi keduanya, atau kosongkan keduanya untuk maintenance seharian.',
-            ], 422);
+            'message' => 'start_time and end_time must both be provided, or both empty for full-day maintenance.',
+        ], 422);
         }
 
         $maintenance = FieldMaintenance::create([
             'field_id' => $fieldId,
-            'date' => $request->date,
-            'start_time' => $request->start_time,
-            'end_time' => $request->end_time,
-            'reason' => $request->reason,
+            'date' => $validated['date'],
+            'start_time' => $validated['start_time'] ?? null,
+            'end_time' => $validated['end_time'] ?? null,
+            'reason' => $validated['reason'],
         ]);
 
         return response()->json([
-            'message' => 'Jadwal maintenance berhasil ditambahkan.',
+            'message' => 'Maintenance schedule added successfully.',
             'data' => $maintenance,
         ], 201);
     }
@@ -72,7 +66,7 @@ class AdminMaintenanceController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Jadwal maintenance berhasil dihapus.',
+            'message' => 'Maintenance schedule deleted successfully.',
         ]);
     }
 }

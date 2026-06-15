@@ -30,7 +30,7 @@ class ScheduleService
                 $slots[] = [
                     'start_time' => sprintf('%02d:00', $hour),
                     'end_time' => sprintf('%02d:00', $hour + 1),
-                    'price' => ($hour >= 16) ? 50000 : 40000,
+                    'price' => ($hour >= 16) ? config('pricing.after_16') : config('pricing.before_16'),
                     'status' => 'maintenance',
                 ];
             }
@@ -44,7 +44,16 @@ class ScheduleService
         $bookedSlots = Schedule::where('field_id', $fieldId)
             ->where('date', $date)
             ->whereHas('bookings', function ($query) {
-                $query->whereIn('status', ['pending', 'approved']);
+                $query->where(function ($q) {
+                    $q->where('status', 'approved')
+                      ->orWhere(function ($qp) {
+                          $qp->where('status', 'pending')
+                             ->where(function ($qe) {
+                                 $qe->whereNull('expires_at')
+                                    ->orWhere('expires_at', '>=', now());
+                             });
+                      });
+                });
             })
             ->pluck('start_time')
             ->map(fn($t) => substr($t, 0, 5))
@@ -65,7 +74,7 @@ class ScheduleService
             $slots[] = [
                 'start_time' => $startTime,
                 'end_time' => sprintf('%02d:00', $hour + 1),
-                'price' => ($hour >= 16) ? 50000 : 40000,
+                'price' => ($hour >= 16) ? config('pricing.after_16') : config('pricing.before_16'),
                 'status' => $status,
             ];
         }
@@ -99,7 +108,16 @@ class ScheduleService
             ->where('date', $date)
             ->where('start_time', $startTime)
             ->whereHas('bookings', function ($query) {
-                $query->whereIn('status', ['pending', 'approved']);
+                $query->where(function ($q) {
+                    $q->where('status', 'approved')
+                      ->orWhere(function ($qp) {
+                          $qp->where('status', 'pending')
+                             ->where(function ($qe) {
+                                 $qe->whereNull('expires_at')
+                                    ->orWhere('expires_at', '>=', now());
+                             });
+                      });
+                });
             })
             ->exists();
 
@@ -113,13 +131,37 @@ class ScheduleService
     {
         $hour = (int) substr($startTime, 0, 2);
 
-        return Schedule::firstOrCreate([
+        // Cek maintenance (tidak perlu lock karena jarang berubah)
+        $isMaintenance = FieldMaintenance::where('field_id', $fieldId)
+            ->where('date', $date)
+            ->where(function ($q) use ($startTime) {
+                $q->whereNull('start_time')
+                  ->orWhere('start_time', '<=', $startTime)
+                  ->where('end_time', '>', $startTime);
+            })
+            ->exists();
+
+        if ($isMaintenance) {
+            throw new \Exception("Schedule slot on {$date} at {$startTime} is under maintenance.");
+        }
+
+        // Lock jadwal untuk cegah race condition
+        $existing = Schedule::where('field_id', $fieldId)
+            ->where('date', $date)
+            ->where('start_time', $startTime)
+            ->lockForUpdate()
+            ->first();
+
+        if ($existing) {
+            throw new \Exception("Schedule slot on {$date} at {$startTime} is not available.");
+        }
+
+        return Schedule::create([
             'field_id' => $fieldId,
             'date' => $date,
             'start_time' => $startTime,
-        ], [
             'end_time' => sprintf('%02d:00', $hour + 1),
-            'price' => ($hour >= 16) ? 50000 : 40000,
+            'price' => ($hour >= 16) ? config('pricing.after_16') : config('pricing.before_16'),
         ]);
     }
 

@@ -7,6 +7,7 @@ use Midtrans\CoreApi;
 use Midtrans\Notification;
 use Midtrans\Transaction;
 use App\Models\Booking;
+use Illuminate\Support\Str;
 
 class MidtransService
 {
@@ -25,7 +26,7 @@ class MidtransService
         $params = [
             'payment_type' => 'qris',
             'transaction_details' => [
-                'order_id' => $booking->booking_number . '-' . time(),
+                'order_id' => $booking->booking_number . '-' . Str::random(8),
                 'gross_amount' => (int) $booking->total_price,
             ],
             'customer_details' => [
@@ -52,13 +53,29 @@ class MidtransService
                 'actions' => $response->actions ?? [],
             ];
         } catch (\Exception $e) {
-            throw new \Exception('Gagal membuat pembayaran QRIS Midtrans: ' . $e->getMessage());
+            throw new \Exception('Failed to create QRIS payment: ' . $e->getMessage());
         }
     }
 
-    public function handleNotification()
+    public function handleNotification(): Notification
     {
-        return new Notification();
+        $notification = new Notification();
+
+        // Verifikasi signature manual (lapisan keamanan tambahan)
+        $computedSignature = hash(
+            'sha512',
+            $notification->order_id . $notification->status_code . $notification->gross_amount . Config::$serverKey
+        );
+
+        if ($notification->signature_key !== $computedSignature) {
+            \Log::warning('Midtrans signature verification failed', [
+                'expected' => $computedSignature,
+                'received' => $notification->signature_key,
+            ]);
+            throw new \Exception('Signature verification failed.');
+        }
+
+        return $notification;
     }
 
     public function checkTransactionStatus($transactionId)
@@ -66,7 +83,7 @@ class MidtransService
         try {
             return Transaction::status($transactionId);
         } catch (\Exception $e) {
-            \Log::error('Gagal mengecek status Midtrans secara langsung: ' . $e->getMessage());
+            \Log::error('Failed to check Midtrans status directly: ' . $e->getMessage());
             return null;
         }
     }
@@ -76,7 +93,7 @@ class MidtransService
         try {
             return Transaction::cancel($transactionId);
         } catch (\Exception $e) {
-            \Log::error('Gagal membatalkan transaksi Midtrans secara langsung: ' . $e->getMessage());
+            \Log::error('Failed to cancel Midtrans transaction directly: ' . $e->getMessage());
             return null;
         }
     }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\UpdateUserStatusRequest;
 use App\Models\User;
 use App\Http\Resources\UserResource;
 use Illuminate\Http\Request;
@@ -35,24 +36,20 @@ class AdminUserController extends Controller
         return UserResource::collection($users);
     }
 
-    public function updateUserStatus(Request $request, $id)
+    public function updateUserStatus(UpdateUserStatusRequest $request, $id)
     {
-        $request->validate([
-            'status' => 'required|in:active,suspended',
-        ]);
-
         $user = User::findOrFail($id);
         
         if ($user->hasRole('admin')) {
             return response()->json([
-                'message' => 'Tidak dapat mengubah status akun sesama Admin.'
+                'message' => 'Cannot change status of another Admin account.'
             ], 403);
         }
 
         $user->update(['status' => $request->status]);
 
         return response()->json([
-            'message' => 'Status user berhasil diperbarui menjadi ' . $request->status,
+            'message' => 'User status updated to ' . $request->status,
             'user' => $user
         ]);
     }

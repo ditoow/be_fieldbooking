@@ -10,7 +10,7 @@ class AdminActivityLogController extends Controller
 {
     public function index(): JsonResponse
     {
-        $logs = ActivityLog::orderBy('created_at', 'desc')
+        $logs = ActivityLog::with('user')->orderBy('created_at', 'desc')
             ->limit(10)
             ->get();
 
@@ -19,9 +19,9 @@ class AdminActivityLogController extends Controller
                 'id' => $log->id,
                 'type' => $log->type,
                 'title' => $log->title,
-                'user_name' => $log->user_name,
+                'user_name' => $log->user?->name ?? $log->user_name,
                 'description' => $log->description,
-                'time_ago' => $log->created_at ? $log->created_at->diffForHumans() : 'baru saja',
+                'time_ago' => $log->created_at ? $log->created_at->diffForHumans() : 'just now',
                 'created_at' => $log->created_at,
             ];
         });

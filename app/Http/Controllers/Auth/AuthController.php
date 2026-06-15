@@ -3,21 +3,19 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Auth\LoginRequest;
+use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\User;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
-    public function login(Request $request)
+    public function login(LoginRequest $request)
     {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required'
-        ]);
+        $validated = $request->validated();
 
-        $user = User::where('email', $request->email)->first();
+        $user = User::where('email', $validated['email'])->first();
         if ($user) {
             $this->syncRoleByEmailSuffix($user);
         }
@@ -46,20 +44,15 @@ class AuthController extends Controller
     }
 
    
-    public function register(Request $request)
+    public function register(RegisterRequest $request)
     {
-  
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8|confirmed',
-            'phone' => 'nullable|string',
-        ]);
+        $validated = $request->validated();
         $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'phone' => $request->phone,
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => Hash::make($validated['password']),
+            'phone' => $validated['phone'],
+            'student_id' => $validated['student_id'] ?? null,
         ]);
         
         $this->syncRoleByEmailSuffix($user);
@@ -72,13 +65,14 @@ class AuthController extends Controller
 
         \App\Models\ActivityLog::create([
             'type' => 'info',
-            'title' => 'User Baru',
-            'description' => "Pengguna baru {$user->name} ({$user->email}) telah terdaftar di sistem.",
+            'title' => 'New User',
+            'description' => "New user {$user->name} ({$user->email}) has registered in the system.",
             'user_name' => $user->name,
+            'user_id' => $user->id,
         ]);
 
         return response()->json([
-            'message' => 'User berhasil didaftarkan!',
+            'message' => 'User registered successfully!',
             'user' => $user
         ], 201);
     }

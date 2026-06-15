@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Field;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Field\IndexFieldRequest;
+use App\Http\Requests\Field\UploadFotoRequest;
 use App\Http\Resources\FieldResource;
 use App\Services\FieldService;
 
@@ -26,5 +27,12 @@ class FieldController extends Controller
     {
         $field = $this->fieldService->getFieldById($id);
         return new FieldResource($field);
+    }
+
+    public function uploadFoto(UploadFotoRequest $request)
+    {
+        $result = $this->fieldService->uploadFoto($request->file('foto'));
+
+        return response()->json(['message' => 'Photo uploaded successfully', 'url' => $result['url']]);
     }
 }

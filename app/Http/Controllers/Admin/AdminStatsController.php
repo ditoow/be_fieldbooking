@@ -21,7 +21,7 @@ class AdminStatsController extends Controller
         }
 
         $pendingVerifications = Booking::where('status', 'pending')->count();
-        $verificationBadge = $pendingVerifications > 0 ? 'Penting' : 'Selesai';
+        $verificationBadge = $pendingVerifications > 0 ? 'Important' : 'Done';
 
         $activeFields = Field::whereHas('detail', fn($q) => $q->where('status', 'available'))->count();
 
@@ -56,22 +56,22 @@ class AdminStatsController extends Controller
                 'today_bookings' => [
                     'value' => $todayBookings,
                     'trend_percentage' => $bookingTrend,
-                    'label' => 'Total Booking Hari Ini'
+                    'label' => "Today's Total Bookings"
                 ],
                 'pending_verifications' => [
                     'value' => $pendingVerifications,
                     'badge' => $verificationBadge,
-                    'label' => 'Menunggu Verifikasi'
+                    'label' => 'Pending Verification'
                 ],
                 'active_fields' => [
                     'value' => $activeFields,
-                    'badge' => 'Aktif',
-                    'label' => 'Lapangan Aktif'
+                    'badge' => 'Active',
+                    'label' => 'Active Fields'
                 ],
                 'monthly_revenue' => [
                     'value' => (int) $currentMonthRevenue,
                     'trend_percentage' => $revenueTrend,
-                    'label' => 'Pendapatan Bulan Ini'
+                    'label' => "This Month's Revenue"
                 ]
             ]
         ]);
@@ -82,13 +82,13 @@ class AdminStatsController extends Controller
         $startOfWeek = Carbon::now()->startOfWeek();
         
         $days = [
-            'SENIN' => 0,
-            'SELASA' => 0,
-            'RABU' => 0,
-            'KAMIS' => 0,
-            'JUMAT' => 0,
-            'SABTU' => 0,
-            'MINGGU' => 0,
+            'MONDAY' => 0,
+            'TUESDAY' => 0,
+            'WEDNESDAY' => 0,
+            'THURSDAY' => 0,
+            'FRIDAY' => 0,
+            'SATURDAY' => 0,
+            'SUNDAY' => 0,
         ];
 
         $bookings = Booking::where('status', 'approved')
@@ -96,13 +96,13 @@ class AdminStatsController extends Controller
             ->get();
 
         $dayMap = [
-            1 => 'SENIN',
-            2 => 'SELASA',
-            3 => 'RABU',
-            4 => 'KAMIS',
-            5 => 'JUMAT',
-            6 => 'SABTU',
-            0 => 'MINGGU',
+            1 => 'MONDAY',
+            2 => 'TUESDAY',
+            3 => 'WEDNESDAY',
+            4 => 'THURSDAY',
+            5 => 'FRIDAY',
+            6 => 'SATURDAY',
+            0 => 'SUNDAY',
         ];
 
         foreach ($bookings as $booking) {

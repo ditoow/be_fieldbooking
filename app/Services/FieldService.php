@@ -3,18 +3,9 @@
 namespace App\Services;
 
 use App\Models\Field;
+use App\Models\Media;
 use Illuminate\Support\Facades\DB;
 use Intervention\Image\Laravel\Facades\Image;
-
-if (!class_exists(\Intervention\Image\Laravel\Facades\Image::class)) {
-    class DummyImageFacade {
-        public static function read($source) { return new self(); }
-        public function scaleDown($width) { return $this; }
-        public function toJpeg($quality) { return $this; }
-        public function toString() { return 'dummy compressed image content'; }
-    }
-    class_alias(DummyImageFacade::class, \Intervention\Image\Laravel\Facades\Image::class);
-}
 
 class FieldService
 {
@@ -28,7 +19,7 @@ class FieldService
     public function createField($data)
     {
         if (isset($data['image_file']) && $data['image_file']->isValid()) {
-            $data['image_url'] = $this->uploadFoto($data['image_file']);
+            $data['image_url'] = $this->uploadFoto($data['image_file'])['url'];
         }
 
         return DB::transaction(function () use ($data) {
@@ -51,7 +42,7 @@ class FieldService
 
     public function getAllFields($filters = [])
     {
-        $query = Field::query();
+        $query = Field::with('detail')->query();
 
         $query->when($filters['category'] ?? null, function ($q, $category){
             return $q->where('category', $category);
@@ -64,17 +55,17 @@ class FieldService
         });
         
         return $query->get()->map(function ($field) {
-            $field->price_min = 40000;
-            $field->price_max = 50000;
+            $field->price_min = config('pricing.before_16');
+            $field->price_max = config('pricing.after_16');
             return $field;
         });
     }
 
     public function getFieldById($id)
     {
-        $field = Field::findOrFail($id);
-        $field->price_min = 40000;
-        $field->price_max = 50000;
+        $field = Field::with('detail')->findOrFail($id);
+        $field->price_min = config('pricing.before_16');
+        $field->price_max = config('pricing.after_16');
         return $field;
     }
 
@@ -82,7 +73,7 @@ class FieldService
     {
         return DB::transaction(function () use ($field, $data) {
             if (isset($data['image_file']) && $data['image_file']->isValid()) {
-                $data['image_url'] = $this->uploadFoto($data['image_file']);
+                $data['image_url'] = $this->uploadFoto($data['image_file'])['url'];
             }
 
             $fieldData = array_intersect_key($data, array_flip(['name', 'image_url', 'category']));
@@ -95,33 +86,47 @@ class FieldService
                 $field->detail()->update($detailData);
             }
 
-            return $field->fresh();
+            return $field->fresh('detail');
         });
     }
 
     public function deleteField(Field $field)
     {
-        DB::transaction(function () use ($field) {
-            $field->schedules()->delete();
-            $field->delete();
-        });
+        $field->delete();
     }
 
-    public function uploadFoto(\Illuminate\Http\UploadedFile $foto): string
+    public function uploadFoto(\Illuminate\Http\UploadedFile $foto): array
     {
-        $filename = 'lapangan_' . uniqid() . '.jpg';
+        $filename = 'lapangan_' . uniqid() . '.webp';
+        $storagePath = "lapangan/{$filename}";
 
         $binary = Image::read($foto)
             ->scaleDown(width: 1280)
-            ->toJpeg(quality: 85)
+            ->toWebp(quality: 80)
             ->toString();
 
-        return $this->supabaseService->upload(
+        $url = $this->supabaseService->upload(
             file: $foto,
-            storagePath: "lapangan/{$filename}",
-            mimeType: 'image/jpeg',
+            storagePath: $storagePath,
+            mimeType: 'image/webp',
             binaryContent: $binary,
             bucket: config('supabase.bucket_image', 'Field-Image')
         );
+
+        Media::create([
+            'model_type' => Field::class,
+            'collection_name' => 'field_image',
+            'original_name' => $foto->getClientOriginalName(),
+            'stored_path' => $storagePath,
+            'mime_type' => 'image/webp',
+            'file_size' => strlen($binary),
+            'bucket' => config('supabase.bucket_image', 'Field-Image'),
+            'url' => $url,
+        ]);
+
+        return [
+            'url' => $url,
+            'stored_path' => $storagePath,
+        ];
     }
 }

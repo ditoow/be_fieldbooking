@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('booking_number', 50)->unique()->index();
             $table->foreignUuid('user_id')->constrained('users')->cascadeOnDelete();
-            $table->enum('status', ['pending', 'approved', 'rejected', 'cancelled'])->default('pending');
+            $table->enum('status', ['pending', 'approved', 'rejected', 'cancelled', 'expired'])->default('pending');
             $table->enum('booking_type', ['paid', 'requirement']);
             $table->integer('total_price')->default(0);
             $table->timestamp('expires_at')->nullable();

@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\Reschedule;
 use Illuminate\Support\Facades\DB;
 use App\Models\ActivityLog;
+use App\Models\Media;
 
 class BookingService
 {
@@ -29,12 +30,14 @@ class BookingService
 
     public function createBooking(User $user, int $fieldId, string $date, array $timeSlots)
     {
+        $this->cleanupExpiredBookings();
+
         if ($user->isSuspended()) {
-            throw new \Exception('Akun Anda ditangguhkan sementara dari pembuatan booking baru.');
+            throw new \Exception('Your account is temporarily suspended from creating new bookings.');
         }
 
         if (empty($timeSlots)) {
-            throw new \Exception('Anda harus memilih minimal satu slot jadwal.');
+            throw new \Exception('You must select at least one time slot.');
         }
 
         // Validasi field ada
@@ -48,21 +51,14 @@ class BookingService
         }
 
         if ($isMahasiswa && count($timeSlots) > 3) {
-            throw new \Exception('Mahasiswa hanya diperbolehkan memesan maksimal 3 jam dalam satu pemesanan.');
-        }
-
-        // Validasi semua slot available
-        foreach ($timeSlots as $startTime) {
-            if (!$this->scheduleService->isSlotAvailable($fieldId, $date, $startTime)) {
-                throw new \Exception("Slot jadwal tanggal {$date} pukul {$startTime} tidak tersedia.");
-            }
+            throw new \Exception('Students can only book a maximum of 3 hours per booking.');
         }
 
         // Hitung total harga
         $totalPrice = 0;
         foreach ($timeSlots as $startTime) {
             $hour = (int) substr($startTime, 0, 2);
-            $totalPrice += ($hour >= 16) ? 50000 : 40000;
+            $totalPrice += ($hour >= 16) ? config('pricing.after_16') : config('pricing.before_16');
         }
 
         $booking = DB::transaction(function () use ($user, $fieldId, $date, $timeSlots, $isMahasiswa, $isUmum, $totalPrice) {
@@ -93,12 +89,12 @@ class BookingService
                     $midtransResult = $this->midtransService->createQris($booking);
                     $booking->update([
                         'qr_id' => $midtransResult['transaction_id'],
-                        'qr_string' => (isset($midtransResult['actions'][0]->url) ? $midtransResult['actions'][0]->url : null) ?? ($midtransResult['qr_string'] ?? null),
+                        'qr_string' => $midtransResult['qr_string'] ?? ($midtransResult['actions'][0]->url ?? null),
                     ]);
                 }
             } catch (\Exception $e) {
                 DB::transaction(function () use ($booking) {
-                    $booking->update(['status' => 'rejected']);
+                    $booking->transitionTo('rejected');
                 });
                 throw $e;
             }
@@ -106,13 +102,13 @@ class BookingService
             $booking->load('schedules.field');
             $firstSchedule = $booking->schedules->sortBy('start_time')->first();
             $lastSchedule = $booking->schedules->sortBy('start_time')->last();
-            $fieldName = $firstSchedule->field->name ?? 'Lapangan';
+            $fieldName = $firstSchedule->field->name ?? 'Field';
             $startTime = $firstSchedule ? date('H:i', strtotime($firstSchedule->start_time)) : '';
             $endTime = $lastSchedule ? date('H:i', strtotime($lastSchedule->end_time)) : '';
 
             $user->notify(new \App\Notifications\BookingNotification(
-                'Menunggu Pembayaran',
-                "Booking lapangan {$fieldName} pukul {$startTime} - {$endTime} berhasil dibuat. Silakan selesaikan pembayaran Anda.",
+                'Waiting for Payment',
+                "Booking {$fieldName} at {$startTime} - {$endTime} has been created. Please complete your payment.",
                 'info',
                 $booking->id
             ));
@@ -120,16 +116,19 @@ class BookingService
 
         ActivityLog::create([
             'type' => 'info',
-            'title' => 'Booking Baru',
-            'description' => "Booking {$booking->booking_number} dibuat oleh {$user->name} untuk tanggal {$date}.",
+            'title' => 'New Booking',
+            'description' => "Booking {$booking->booking_number} was created by {$user->name} for {$date}.",
             'user_name' => $user->name,
+            'user_id' => $user->id,
         ]);
 
         return $booking;
     }
 
-    public function getUserBookings(User $user, $filters = [])
+    public function getUserBookings(User $user, $filters = [], $perPage = 10)
     {
+        $this->cleanupExpiredBookings();
+
         $query = Booking::with(['schedules.field', 'user'])
             ->where('user_id', $user->id);
 
@@ -137,11 +136,13 @@ class BookingService
             $query->where('status', $filters['status']);
         }
 
-        return $query->orderBy('created_at', 'desc')->get();
+        return $query->orderBy('created_at', 'desc')->paginate($perPage);
     }
 
     public function getBookingById($bookingId, User $user)
     {
+        $this->cleanupExpiredBookings();
+
         $booking = Booking::with(['schedules.field', 'user'])
             ->where('id', $bookingId)
             ->where('user_id', $user->id)
@@ -171,45 +172,83 @@ class BookingService
     public function uploadFile(Booking $booking, $file)
     {
         if ($booking->booking_type !== 'requirement') {
-            throw new \Exception('Metode ini hanya diperuntukkan bagi pemesanan mahasiswa dengan surat persyaratan.');
+            throw new \Exception('This method is only available for student requirement bookings.');
+        }
+
+        if ($booking->status === 'expired' || ($booking->expires_at && $booking->expires_at < now())) {
+            if ($booking->status === 'pending') {
+                DB::transaction(function () use ($booking) {
+                    $booking->transitionTo('expired');
+                });
+
+                $booking->user->notify(new \App\Notifications\BookingNotification(
+                    'Booking Expired',
+                    'Your booking request has expired because the document was not uploaded within 10 minutes.',
+                    'warning',
+                    $booking->id
+                ));
+
+                ActivityLog::create([
+                    'type' => 'danger',
+                    'title' => 'Booking Expired',
+                    'description' => "Booking {$booking->booking_number} has expired (10-minute upload deadline missed).",
+                    'user_name' => $booking->user->name,
+                    'user_id' => $booking->user_id,
+                ]);
+            }
+            throw new \Exception('The upload deadline for requirement documents (10 minutes) has expired.');
         }
 
         if ($booking->status !== 'pending') {
             throw new \Exception('Can only upload file for pending booking');
         }
 
-        if ($booking->expires_at && $booking->expires_at < now()) {
-            foreach ($booking->schedules as $schedule) {
-                $schedule->delete();
-            }
-            throw new \Exception('Batas waktu mengunggah berkas persyaratan (10 menit) telah habis.');
-        }
-
-        $fileUrl = $this->uploadDokumen($file);
+        $result = $this->uploadDokumen($file);
 
         $booking->update([
-            'file_url' => $fileUrl,
+            'file_url' => $result['url'],
             'expires_at' => now()->addHours(2),
+        ]);
+
+        Media::create([
+            'user_id' => $booking->user_id,
+            'model_type' => Booking::class,
+            'model_id' => $booking->id,
+            'collection_name' => 'booking_document',
+            'original_name' => $file->getClientOriginalName(),
+            'stored_path' => $result['stored_path'],
+            'mime_type' => $file->getMimeType(),
+            'file_size' => $file->getSize(),
+            'bucket' => config('supabase.bucket_document', 'File-Document'),
+            'url' => $result['url'],
         ]);
 
         return $booking;
     }
 
-    public function uploadDokumen(\Illuminate\Http\UploadedFile $pdf): string
+    public function uploadDokumen(\Illuminate\Http\UploadedFile $pdf): array
     {
         $filename = 'dokumen_' . uniqid() . '.pdf';
+        $storagePath = "dokumen/{$filename}";
 
-        return $this->supabaseService->upload(
+        $url = $this->supabaseService->upload(
             file: $pdf,
-            storagePath: "dokumen/{$filename}",
+            storagePath: $storagePath,
             mimeType: 'application/pdf',
             binaryContent: null,
             bucket: config('supabase.bucket_document', 'File-Document')
         );
+
+        return [
+            'url' => $url,
+            'stored_path' => $storagePath,
+        ];
     }
 
     public function getAllBookings($filters = [], $perPage = 10)
     {
+        $this->cleanupExpiredBookings();
+
         $query = Booking::with(['schedules.field', 'user']);
 
         if (isset($filters['status']) && !empty($filters['status'])) {
@@ -257,12 +296,12 @@ class BookingService
         }
 
         if ($booking->expires_at && $booking->expires_at < now()) {
-            $booking->update(['status' => 'rejected']);
+            $booking->transitionTo('expired');
             throw new \Exception('Booking has expired');
         }
 
         $booking = DB::transaction(function () use ($booking) {
-            $booking->update(['status' => 'approved']);
+            $booking->transitionTo('approved');
             return $booking;
         });
 
@@ -273,24 +312,25 @@ class BookingService
         $endTime = $lastSchedule ? date('H:i', strtotime($lastSchedule->end_time)) : '';
 
         $booking->user->notify(new \App\Notifications\BookingNotification(
-            'Pemesanan Berhasil',
-            "Booking lapangan {$fieldName} pukul {$startTime} - {$endTime} telah dikonfirmasi.",
+            'Booking Confirmed',
+            "Booking {$fieldName} at {$startTime} - {$endTime} has been confirmed.",
             'success',
             $booking->id
         ));
 
         $booking->user->notify(new \App\Notifications\BookingNotification(
-            'Verifikasi Dokumen',
-            'Admin telah menyetujui berkas Surat TU Anda. Silakan cek riwayat booking.',
+            'Document Verified',
+            'Admin has approved your requirement document. Please check your booking history.',
             'info',
             $booking->id
         ));
 
         ActivityLog::create([
             'type' => 'success',
-            'title' => 'Booking Dikonfirmasi',
-            'description' => "Pemesanan {$booking->booking_number} telah disetujui oleh Admin.",
+            'title' => 'Booking Confirmed',
+            'description' => "Booking {$booking->booking_number} has been approved by Admin.",
             'user_name' => $booking->user->name,
+            'user_id' => $booking->user_id,
         ]);
 
         return $booking;
@@ -303,22 +343,23 @@ class BookingService
         }
 
         $booking = DB::transaction(function () use ($booking) {
-            $booking->update(['status' => 'rejected']);
+            $booking->transitionTo('rejected');
             return $booking;
         });
 
         $booking->user->notify(new \App\Notifications\BookingNotification(
-            'Pemesanan Ditolak',
-            'Mohon maaf, pengajuan booking lapangan Anda ditolak oleh Admin karena dokumen berkas tidak memenuhi syarat.',
+            'Booking Rejected',
+            'Sorry, your booking request has been rejected by Admin because the document did not meet the requirements.',
             'warning',
             $booking->id
         ));
 
         ActivityLog::create([
             'type' => 'danger',
-            'title' => 'Pemesanan Ditolak',
-            'description' => "Pemesanan {$booking->booking_number} ditolak oleh Admin.",
+            'title' => 'Booking Rejected',
+            'description' => "Booking {$booking->booking_number} has been rejected by Admin.",
             'user_name' => $booking->user->name,
+            'user_id' => $booking->user_id,
         ]);
 
         return $booking;
@@ -337,9 +378,10 @@ class BookingService
 
         ActivityLog::create([
             'type' => 'success',
-            'title' => 'Kehadiran Dicatat',
-            'description' => "User {$booking->user->name} tercatat menghadiri sesi booking {$booking->booking_number}.",
+            'title' => 'Attendance Recorded',
+            'description' => "User {$booking->user->name} attended booking session {$booking->booking_number}.",
             'user_name' => $booking->user->name,
+            'user_id' => $booking->user_id,
         ]);
 
         return $booking;
@@ -357,26 +399,26 @@ class BookingService
         $booking = Booking::with('schedules')->where('id', $bookingId)->where('user_id', $user->id)->firstOrFail();
 
         if (!$user->hasRole('mahasiswa')) {
-            throw new \Exception('Fitur reschedule gratis hanya tersedia untuk mahasiswa.');
+            throw new \Exception('Free reschedule is only available for students.');
         }
 
         if (!in_array($booking->status, ['pending', 'approved'])) {
-            throw new \Exception('Hanya pemesanan aktif yang dapat dipindahkan.');
+            throw new \Exception('Only active bookings can be rescheduled.');
         }
 
         $oldSchedule = $booking->schedules->where('id', $oldScheduleId)->first();
         if (!$oldSchedule) {
-            throw new \Exception('Jadwal lama tidak ditemukan dalam pemesanan ini.');
+            throw new \Exception('Old schedule not found in this booking.');
         }
 
         $scheduleDateTime = \Carbon\Carbon::parse($oldSchedule->date . ' ' . $oldSchedule->start_time);
         if (now()->diffInHours($scheduleDateTime, false) < 2) {
-            throw new \Exception('Reschedule hanya dapat diajukan maksimal 2 jam sebelum jadwal dimulai.');
+            throw new \Exception('Reschedule can only be requested up to 2 hours before the schedule starts.');
         }
 
         // Cek slot baru available
         if (!$this->scheduleService->isSlotAvailable($fieldId, $date, $newTimeSlot)) {
-            throw new \Exception('Jadwal baru pilihan Anda tidak tersedia.');
+            throw new \Exception('The new schedule you selected is not available.');
         }
 
         return DB::transaction(function () use ($booking, $oldSchedule, $fieldId, $date, $newTimeSlot) {
@@ -416,22 +458,22 @@ class BookingService
         $isUmum = $user->hasRole('umum');
 
         if (!$isMahasiswa && !$isUmum) {
-            throw new \Exception('Akun Anda tidak memiliki akses untuk membatalkan pesanan.');
+            throw new \Exception('Your account does not have permission to cancel bookings.');
         }
 
         if (!in_array($booking->status, ['pending', 'approved'])) {
-            throw new \Exception('Hanya pemesanan aktif yang dapat dibatalkan.');
+            throw new \Exception('Only active bookings can be cancelled.');
         }
 
         foreach ($booking->schedules as $schedule) {
             $scheduleDateTime = \Carbon\Carbon::parse($schedule->date . ' ' . $schedule->start_time);
             if (now()->diffInHours($scheduleDateTime, false) < 2) {
-                throw new \Exception('Pembatalan hanya dapat diajukan maksimal 2 jam sebelum jadwal dimulai.');
+                throw new \Exception('Cancellation can only be requested up to 2 hours before the schedule starts.');
             }
         }
 
         if ($booking->status === 'cancelled') {
-            throw new \Exception('Pemesanan ini sudah dibatalkan sebelumnya.');
+            throw new \Exception('This booking has already been cancelled.');
         }
 
         if ($booking->status === 'pending' && $booking->booking_type === 'paid' && $booking->qr_id) {
@@ -440,13 +482,14 @@ class BookingService
 
         ActivityLog::create([
             'type' => 'warning',
-            'title' => 'Pembatalan',
-            'description' => "Pemesanan {$booking->booking_number} dibatalkan oleh pengguna.",
+            'title' => 'Cancellation',
+            'description' => "Booking {$booking->booking_number} was cancelled by the user.",
             'user_name' => $user->name,
+            'user_id' => $user->id,
         ]);
 
         return DB::transaction(function () use ($booking) {
-            $booking->update(['status' => 'cancelled']);
+            $booking->transitionTo('cancelled');
             return $booking;
         });
     }
@@ -473,17 +516,18 @@ class BookingService
         $endTime = $lastSchedule ? date('H:i', strtotime($lastSchedule->end_time)) : '';
 
         $booking->user->notify(new \App\Notifications\BookingNotification(
-            'Pemesanan Berhasil',
-            "Booking lapangan {$fieldName} pukul {$startTime} - {$endTime} telah dikonfirmasi.",
+            'Booking Confirmed',
+            "Booking {$fieldName} at {$startTime} - {$endTime} has been confirmed.",
             'success',
             $booking->id
         ));
 
         ActivityLog::create([
             'type' => 'success',
-            'title' => 'Booking Dikonfirmasi',
-            'description' => "Pembayaran untuk pemesanan {$booking->booking_number} lunas (settlement).",
+            'title' => 'Booking Confirmed',
+            'description' => "Payment for booking {$booking->booking_number} completed (settlement).",
             'user_name' => $booking->user->name,
+            'user_id' => $booking->user_id,
         ]);
 
         return $booking;
@@ -496,25 +540,62 @@ class BookingService
         }
 
         $booking = DB::transaction(function () use ($booking, $reason) {
-            $status = $reason === 'cancel' ? 'cancelled' : 'rejected';
-            $booking->update(['status' => $status]);
+            $status = $reason === 'cancel' ? 'cancelled' : ($reason === 'expire' || $reason === 'expired' ? 'expired' : 'rejected');
+            $booking->transitionTo($status);
             return $booking;
         });
 
         $booking->user->notify(new \App\Notifications\BookingNotification(
-            'Pemesanan Dibatalkan',
-            "Booking lapangan Anda dibatalkan karena pembayaran {$reason}.",
+            'Booking Cancelled',
+            "Your booking was cancelled due to {$reason} payment.",
             'warning',
             $booking->id
         ));
 
         ActivityLog::create([
             'type' => 'danger',
-            'title' => 'Pemesanan Gagal',
-            'description' => "Pemesanan {$booking->booking_number} gagal/expired dalam proses pembayaran.",
+            'title' => 'Booking Failed',
+            'description' => "Booking {$booking->booking_number} failed/expired during payment.",
             'user_name' => $booking->user->name,
+            'user_id' => $booking->user_id,
         ]);
 
         return $booking;
+    }
+
+    public function cleanupExpiredBookings(): void
+    {
+        $expiredBookings = Booking::with('user')->where('status', 'pending')
+            ->where('expires_at', '<', now())
+            ->get();
+
+        foreach ($expiredBookings as $booking) {
+            DB::transaction(function () use ($booking) {
+                $booking->transitionTo('expired');
+            });
+
+            // Kirim notifikasi
+            $message = $booking->booking_type === 'paid'
+                ? 'Your booking payment has expired.'
+                : 'Your booking request has expired because it was not verified by admin within 2 hours.';
+
+            if ($booking->user) {
+                $booking->user->notify(new \App\Notifications\BookingNotification(
+                    'Booking Expired',
+                    $message,
+                    'warning',
+                    $booking->id
+                ));
+            }
+
+            // Catat log
+            ActivityLog::create([
+                'type' => 'danger',
+                'title' => 'Booking Expired',
+                'description' => "Booking {$booking->booking_number} has expired.",
+                'user_name' => $booking->user->name ?? 'System',
+                'user_id' => $booking->user_id,
+            ]);
+        }
     }
 }

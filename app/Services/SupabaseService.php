@@ -43,7 +43,7 @@ class SupabaseService
         ])->withBody($content, $mimeType)->post($endpoint);
 
         if ($response->failed()) {
-            throw new \Exception('Gagal mengunggah file ke Supabase: ' . $response->body());
+            throw new \Exception('Failed to upload file to Supabase: ' . $response->body());
         }
 
         return "{$this->url}/storage/v1/object/public/{$bucketName}/{$storagePath}";

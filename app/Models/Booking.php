@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\HasMedia;
 use Illuminate\Database\Eloquent\Model;
 
 class Booking extends Model
 {
+    use HasMedia;
+
 
 
     protected $fillable = [
@@ -24,9 +27,30 @@ class Booking extends Model
 
     protected $casts = [
         'is_attended' => 'boolean',
-        'attended_at' => 'datetime',
         'expires_at' => 'datetime',
+        'total_price' => 'integer',
     ];
+
+    public const TRANSITIONS = [
+        'pending' => ['approved', 'rejected', 'cancelled', 'expired'],
+        'approved' => ['cancelled'],
+        'rejected' => [],
+        'cancelled' => [],
+        'expired' => [],
+    ];
+
+    public function transitionTo(string $newStatus): void
+    {
+        $allowed = self::TRANSITIONS[$this->status] ?? [];
+
+        if (!in_array($newStatus, $allowed, true)) {
+            throw new \InvalidArgumentException(
+                "Cannot transition booking from '{$this->status}' to '{$newStatus}'."
+            );
+        }
+
+        $this->update(['status' => $newStatus]);
+    }
 
     protected static function boot()
     {

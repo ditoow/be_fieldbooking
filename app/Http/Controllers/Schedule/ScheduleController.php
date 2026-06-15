@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Schedule;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Schedule\IndexScheduleRequest;
 use App\Services\ScheduleService;
-use Illuminate\Http\Request;
 
 class ScheduleController extends Controller
 {
@@ -15,17 +15,12 @@ class ScheduleController extends Controller
         $this->scheduleService = $scheduleService;
     }
 
-    public function index(Request $request)
+    public function index(IndexScheduleRequest $request)
     {
-        $request->validate([
-            'field_id' => 'required|exists:fields,id',
-            'start_date' => 'required|date',
-            'end_date' => 'required|date|after_or_equal:start_date',
-        ]);
-
-        $fieldId = (int) $request->field_id;
-        $startDate = $request->start_date;
-        $endDate = $request->end_date;
+        $validated = $request->validated();
+        $fieldId = (int) $validated['field_id'];
+        $startDate = $validated['start_date'];
+        $endDate = $validated['end_date'];
 
         $result = [];
         $current = \Carbon\Carbon::parse($startDate);

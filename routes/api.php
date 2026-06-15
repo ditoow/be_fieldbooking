@@ -15,12 +15,11 @@ use App\Http\Controllers\Admin\AdminActivityLogController;
 use App\Http\Controllers\Admin\AdminReportController;
 use App\Http\Controllers\Notification\NotificationController;
 use App\Http\Controllers\Payment\PaymentController;
-use App\Http\Controllers\UploadController;
 use Illuminate\Support\Facades\Auth;
 
-Route::post('register', [AuthController::class, 'register']);
-Route::post('login', [AuthController::class, 'login']);
-Route::post('/payment/midtrans-callback', [PaymentController::class, 'handleWebhook']);
+Route::post('register', [AuthController::class, 'register'])->middleware('throttle:auth');
+Route::post('login', [AuthController::class, 'login'])->middleware('throttle:auth');
+Route::post('/payment/midtrans-callback', [PaymentController::class, 'handleWebhook'])->middleware('throttle:20,1');
 
 Route::get('/fields', [FieldController::class, 'index']);
 Route::get('/schedules', [ScheduleController::class, 'index']);
@@ -35,7 +34,6 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/bookings', [BookingController::class, 'index']);
     Route::get('/bookings/{id}', [BookingController::class, 'show']);
     Route::post('/bookings/{id}/upload', [BookingController::class, 'upload']);
-    // Route::post('/upload/dokumen', [UploadController::class, 'uploadDokumen']);
     Route::patch('/bookings/{id}/reschedule', [BookingController::class, 'reschedule']);
     Route::patch('/bookings/{id}/cancel', [BookingController::class, 'cancel']);
 
@@ -61,7 +59,7 @@ Route::middleware('auth:api')->group(function () {
         Route::post('/admin/fields/{id}/maintenances', [AdminMaintenanceController::class, 'store']);
         Route::delete('/admin/maintenances/{id}', [AdminMaintenanceController::class, 'destroy']);
 
-        // Route::post('/upload/foto', [UploadController::class, 'uploadFoto']);
+        Route::post('/upload/foto', [FieldController::class, 'uploadFoto']);
     });
 
     Route::get('/user', function () {

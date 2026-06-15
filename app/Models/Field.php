@@ -2,12 +2,16 @@
 
 namespace App\Models;
 
+use App\Traits\HasMedia;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Field extends Model
 {
+    use HasMedia, SoftDeletes;
+
     protected $table = 'fields';
 
     protected $fillable = [
@@ -15,8 +19,6 @@ class Field extends Model
         'image_url',
         'category',
     ];
-
-    protected $with = ['detail'];
 
     public function detail(): HasOne
     {

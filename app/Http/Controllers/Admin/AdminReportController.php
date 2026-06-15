@@ -34,10 +34,10 @@ class AdminReportController extends Controller
         // Status filter (mapped from frontend values)
         if ($status = $request->query('status')) {
             $mappedStatus = null;
-            if ($status === 'BERHASIL') $mappedStatus = 'approved';
-            if ($status === 'MENUNGGU') $mappedStatus = 'pending';
-            if ($status === 'GAGAL') $mappedStatus = 'rejected';
-            if ($status === 'BATAL') $mappedStatus = 'cancelled';
+            if ($status === 'SUCCESS') $mappedStatus = 'approved';
+            if ($status === 'PENDING') $mappedStatus = 'pending';
+            if ($status === 'FAILED') $mappedStatus = 'rejected';
+            if ($status === 'CANCELLED') $mappedStatus = 'cancelled';
 
             if ($mappedStatus) {
                 $query->where('status', $mappedStatus);
@@ -46,21 +46,11 @@ class AdminReportController extends Controller
 
         $bookings = $query->orderBy('created_at', 'desc')->get();
 
-        $dayNames = [
-            'Sunday' => 'Minggu', 'Monday' => 'Senin', 'Tuesday' => 'Selasa',
-            'Wednesday' => 'Rabu', 'Thursday' => 'Kamis', 'Friday' => 'Jumat', 'Saturday' => 'Sabtu'
-        ];
-
-        $monthNames = [
-            'Jan' => 'Jan', 'Feb' => 'Feb', 'Mar' => 'Mar', 'Apr' => 'Apr', 'May' => 'Mei', 'Jun' => 'Jun',
-            'Jul' => 'Jul', 'Aug' => 'Agt', 'Sep' => 'Sep', 'Oct' => 'Okt', 'Nov' => 'Nov', 'Dec' => 'Des'
-        ];
-
-        $formattedTransactions = $bookings->map(function ($booking) use ($dayNames, $monthNames) {
+        $formattedTransactions = $bookings->map(function ($booking) {
             $firstSchedule = $booking->schedules->sortBy('start_time')->first();
             $lastSchedule = $booking->schedules->sortBy('start_time')->last();
 
-            $fieldName = $firstSchedule->field->name ?? 'Lapangan';
+            $fieldName = $firstSchedule->field->name ?? 'Field';
             $category = $firstSchedule->field->category ?? 'Futsal';
 
             // Get icon
@@ -71,42 +61,35 @@ class AdminReportController extends Controller
             elseif (str_contains($lowerCategory, 'voli')) $icon = '🏐';
             elseif (str_contains($lowerCategory, 'tenis') || str_contains($lowerCategory, 'tennis')) $icon = '🎾';
 
-            // Date format: e.g. "24 Okt, 2023"
-            $createdAt = $booking->created_at;
-            $day = $createdAt->format('d');
-            $mon = $monthNames[$createdAt->format('M')] ?? $createdAt->format('M');
-            $year = $createdAt->format('Y');
-            $formattedDate = "{$day} {$mon}, {$year}";
+            $formattedDate = $booking->created_at ? $booking->created_at->format('d M, Y') : '';
 
             // Waktu
             $startTimeStr = $firstSchedule ? date('H:i', strtotime($firstSchedule->start_time)) : '';
             $endTimeStr = $lastSchedule ? date('H:i', strtotime($lastSchedule->end_time)) : '';
             $formattedTime = "{$startTimeStr} - {$endTimeStr}";
 
-            // Durasi
-            $duration = count($booking->schedules) . ' Jam';
+            $duration = count($booking->schedules) . ' hrs';
 
             // Nominal
             $nominalRupiah = 'Rp ' . number_format($booking->total_price, 0, ',', '.');
 
-            // Status
-            $statusLabel = 'MENUNGGU';
-            if ($booking->status === 'approved') $statusLabel = 'BERHASIL';
-            if ($booking->status === 'rejected') $statusLabel = 'GAGAL';
-            if ($booking->status === 'cancelled') $statusLabel = 'BATAL';
+            $statusLabel = 'PENDING';
+            if ($booking->status === 'approved') $statusLabel = 'SUCCESS';
+            if ($booking->status === 'rejected') $statusLabel = 'FAILED';
+            if ($booking->status === 'cancelled') $statusLabel = 'CANCELLED';
 
             return [
                 'id' => '#' . $booking->booking_number,
                 'icon' => $icon,
-                'fasilitas' => $fieldName,
-                'pengguna' => $booking->user->name ?? 'User',
-                'kategori' => $booking->booking_type === 'requirement' ? 'STUDENT' : 'PUBLIC',
-                'tanggal' => $formattedDate,
-                'waktu' => $formattedTime,
-                'durasi' => $duration,
-                'nominal' => $nominalRupiah,
-                'nominal_numeric' => $booking->total_price,
-                'metodePembayaran' => $booking->booking_type === 'requirement' ? 'Surat TU' : 'QRIS',
+                'facility' => $fieldName,
+                'user' => $booking->user->name ?? 'User',
+                'category' => $booking->booking_type === 'requirement' ? 'STUDENT' : 'PUBLIC',
+                'date' => $formattedDate,
+                'time' => $formattedTime,
+                'duration' => $duration,
+                'amount' => $nominalRupiah,
+                'amount_numeric' => $booking->total_price,
+                'payment_method' => $booking->booking_type === 'requirement' ? 'Student Letter' : 'QRIS',
                 'status' => $statusLabel,
             ];
         });
@@ -171,7 +154,7 @@ class AdminReportController extends Controller
             $revenueTrendVal = round((($currentMonthRevenue - $lastMonthRevenue) / $lastMonthRevenue) * 100, 1);
         }
         $trendSign = $revenueTrendVal >= 0 ? '▲' : '▼';
-        $revenueTrend = "{$trendSign} " . abs($revenueTrendVal) . "% vs Bulan Sebelumnya";
+        $revenueTrend = "{$trendSign} " . abs($revenueTrendVal) . "% vs Last Month";
 
         // 2. Total Sesi Booking Bulan Ini
         $totalBookingsCount = Booking::whereMonth('created_at', $currentMonth)
@@ -224,36 +207,26 @@ class AdminReportController extends Controller
 
         $pdfTransactions = $latestBookings->map(function ($booking) {
             $firstSchedule = $booking->schedules->sortBy('start_time')->first();
-            $fieldName = $firstSchedule->field->name ?? 'Lapangan';
-            $duration = count($booking->schedules) . ' Jam';
+            $fieldName = $firstSchedule->field->name ?? 'Field';
+            $duration = count($booking->schedules) . ' hrs';
 
             return [
                 'id' => 'TRX-' . $booking->id,
                 'user_detail' => ($booking->user->name ?? 'User') . ($booking->user->student_id ? " ({$booking->user->student_id})" : ""),
-                'layanan' => "{$fieldName} ({$duration})",
-                'tanggal' => $booking->created_at ? $booking->created_at->format('d M Y') : '-',
-                'nominal' => 'Rp ' . number_format($booking->total_price, 0, ',', '.'),
+                'service' => "{$fieldName} ({$duration})",
+                'date' => $booking->created_at ? $booking->created_at->format('d M Y') : '-',
+                'amount' => 'Rp ' . number_format($booking->total_price, 0, ',', '.'),
                 'status' => $booking->status === 'approved' ? 'SUCCESS' : ($booking->booking_type === 'requirement' ? 'FREE BOOKING' : strtoupper($booking->status)),
             ];
         });
 
-        // Tanggal Cetak
-        $dayNamesIndo = [
-            'Sunday' => 'Minggu', 'Monday' => 'Senin', 'Tuesday' => 'Selasa',
-            'Wednesday' => 'Rabu', 'Thursday' => 'Kamis', 'Friday' => 'Jumat', 'Saturday' => 'Sabtu'
-        ];
-        $monthNamesIndo = [
-            1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April', 5 => 'Mei', 6 => 'Juni',
-            7 => 'Juli', 8 => 'Agustus', 9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'
-        ];
-
-        $printDate = $now->format('d') . ' ' . ($monthNamesIndo[$now->month] ?? $now->format('F')) . ' ' . $now->format('Y');
+        $printDate = $now->format('d F Y');
 
         return response()->json([
             'success' => true,
             'message' => 'PDF report data retrieved successfully',
             'data' => [
-                'report_id' => '#UGO-RPT-' . $now->format('Ym'),
+                'report_id' => 'RPT-' . $now->format('Ym'),
                 'print_date' => $printDate,
                 'summary' => [
                     'total_revenue' => $currentMonthRevenue,

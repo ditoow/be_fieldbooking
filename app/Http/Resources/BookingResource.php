@@ -10,18 +10,16 @@ class BookingResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        Carbon::setLocale('id');
-
         $firstSchedule = $this->schedules->sortBy('start_time')->first();
         $lastSchedule = $this->schedules->sortBy('start_time')->last();
 
         $formattedDate = '';
         $formattedTime = '';
-        $fieldName = 'Lapangan';
+        $fieldName = 'Field';
 
         if ($firstSchedule) {
-            $formattedDate = Carbon::parse($firstSchedule->date)->translatedFormat('d M Y');
-            $fieldName = $firstSchedule->field->name ?? 'Lapangan';
+            $formattedDate = Carbon::parse($firstSchedule->date)->format('d M Y');
+            $fieldName = $firstSchedule->field->name ?? 'Field';
             
             if ($lastSchedule) {
                 $startTime = Carbon::parse($firstSchedule->start_time)->format('H:i');
@@ -48,7 +46,7 @@ class BookingResource extends JsonResource
             'formatted_date' => $formattedDate,
             'formatted_time' => $formattedTime,
             'schedules' => ScheduleResource::collection($this->whenLoaded('schedules')),
-            'user' => new UserResource($this->user),
+            'user' => $this->whenLoaded('user', fn() => new UserResource($this->user)),
             'created_at' => $this->created_at->toIso8601String(),
         ];
     }

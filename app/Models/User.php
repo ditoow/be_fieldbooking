@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Spatie\Permission\Traits\HasRoles;
 use Tymon\JWTAuth\Contracts\JWTSubject;
@@ -74,8 +75,9 @@ class User extends Authenticatable implements JWTSubject
             return null;
         }
 
+        $castType = DB::connection()->getDriverName() === 'pgsql' ? 'INTEGER' : 'UNSIGNED';
         $latest = static::where('user_number', 'like', $prefix . '%')
-            ->orderByRaw('CAST(SUBSTRING(user_number, ?) AS UNSIGNED) DESC', [strlen($prefix) + 1])
+            ->orderByRaw('CAST(SUBSTRING(user_number, ?) AS ' . $castType . ') DESC', [strlen($prefix) + 1])
             ->first();
 
         $nextId = $latest

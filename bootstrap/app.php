@@ -1,8 +1,14 @@
 <?php
 
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpKernel\Exception\ThrottleRequestsException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -17,8 +23,36 @@ return Application::configure(basePath: dirname(__DIR__))
         'permission'         => \Spatie\Permission\Middleware\PermissionMiddleware::class,
         'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
     ]);
+
+    $middleware->api(prepend: [
+        \Illuminate\Routing\Middleware\ThrottleRequests::class.':api',
+    ]);
 })
 
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->shouldRenderJsonWhen(function (Request $request) {
+            return $request->expectsJson() || $request->is('api/*');
+        });
+
+        $exceptions->render(function (ModelNotFoundException|NotFoundHttpException $e) {
+            return response()->json(['message' => 'Resource not found.'], 404);
+        });
+
+        $exceptions->render(function (AuthenticationException $e) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        });
+
+        $exceptions->render(function (AuthorizationException $e) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        });
+
+        $exceptions->render(function (ThrottleRequestsException $e) {
+            return response()->json(['message' => 'Too many requests. Please try again later.'], 429);
+        });
+
+        $exceptions->render(function (Throwable $e) {
+            $message = config('app.debug') ? $e->getMessage() : 'Internal server error.';
+
+            return response()->json(['message' => $message], 500);
+        });
     })->create();
