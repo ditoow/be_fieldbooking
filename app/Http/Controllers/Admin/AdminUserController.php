@@ -36,7 +36,7 @@ class AdminUserController extends Controller
         return UserResource::collection($users);
     }
 
-    public function updateUserStatus(UpdateUserStatusRequest $request, $id)
+    public function updateUserStatus(UpdateUserStatusRequest $request, string $id)
     {
         $user = User::findOrFail($id);
         

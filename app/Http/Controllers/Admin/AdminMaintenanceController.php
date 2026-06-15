@@ -12,11 +12,11 @@ class AdminMaintenanceController extends Controller
     /**
      * List maintenance schedules untuk field tertentu.
      */
-    public function index($fieldId)
+    public function index(int $fieldId)
     {
         $field = Field::findOrFail($fieldId);
 
-        $maintenances = FieldMaintenance::where('field_id', $fieldId)
+        $maintenances = FieldMaintenance::query()->where('field_id', $fieldId)
             ->orderBy('date')
             ->orderBy('start_time')
             ->get();
@@ -29,7 +29,7 @@ class AdminMaintenanceController extends Controller
     /**
      * Set tanggal/jam maintenance untuk field.
      */
-    public function store(StoreMaintenanceRequest $request, $fieldId)
+    public function store(StoreMaintenanceRequest $request, int $fieldId)
     {
         $field = Field::findOrFail($fieldId);
         $validated = $request->validated();
@@ -59,7 +59,7 @@ class AdminMaintenanceController extends Controller
     /**
      * Hapus jadwal maintenance.
      */
-    public function destroy($id)
+    public function destroy(int $id)
     {
         $maintenance = FieldMaintenance::findOrFail($id);
         $maintenance->delete();

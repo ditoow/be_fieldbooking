@@ -24,7 +24,7 @@ class AdminFieldController extends Controller
         return new FieldResource($field);
     }
 
-    public function updateField(UpdateFieldRequest $request, $id)
+    public function updateField(UpdateFieldRequest $request, string $id)
     {
         $field = Field::findOrFail($id);
 
@@ -32,7 +32,7 @@ class AdminFieldController extends Controller
         return new FieldResource($updatedField);
     }
 
-    public function destroyField($id)
+    public function destroyField(string $id)
     {
         $field = Field::findOrFail($id);
         $this->fieldService->deleteField($field);

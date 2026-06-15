@@ -27,7 +27,7 @@ class AdminBookingController extends Controller
         return BookingResource::collection($bookings);
     }
 
-    public function approveBooking($id)
+    public function approveBooking(string $id)
     {
         $booking = Booking::find($id);
 
@@ -48,7 +48,7 @@ class AdminBookingController extends Controller
         }
     }
 
-    public function rejectBooking($id)
+    public function rejectBooking(string $id)
     {
         $booking = Booking::find($id);
 
@@ -69,7 +69,7 @@ class AdminBookingController extends Controller
         }
     }
 
-    public function attendBooking($id)
+    public function attendBooking(string $id)
     {
         $booking = Booking::find($id);
 
