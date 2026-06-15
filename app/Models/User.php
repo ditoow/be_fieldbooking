@@ -74,9 +74,20 @@ class User extends Authenticatable implements JWTSubject
             return null;
         }
 
-        $latest = static::where('user_number', 'like', $prefix . '%')
-            ->orderByRaw('CAST(SUBSTRING(user_number, ?) AS UNSIGNED) DESC', [strlen($prefix) + 1])
-            ->first();
+        $driver = \Illuminate\Support\Facades\DB::connection()->getDriverName();
+        $startPos = strlen($prefix) + 1;
+
+        $query = static::where('user_number', 'like', $prefix . '%');
+
+        if ($driver === 'pgsql') {
+            $query->orderByRaw("CAST(SUBSTRING(user_number, {$startPos}) AS INTEGER) DESC");
+        } elseif ($driver === 'sqlite') {
+            $query->orderByRaw("CAST(SUBSTR(user_number, {$startPos}) AS INTEGER) DESC");
+        } else {
+            $query->orderByRaw("CAST(SUBSTRING(user_number, {$startPos}) AS UNSIGNED) DESC");
+        }
+
+        $latest = $query->first();
 
         $nextId = $latest
             ? ((int) substr($latest->user_number, strlen($prefix))) + 1
