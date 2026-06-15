@@ -75,9 +75,8 @@ class User extends Authenticatable implements JWTSubject
             return null;
         }
 
-        $castType = DB::connection()->getDriverName() === 'pgsql' ? 'INTEGER' : 'UNSIGNED';
         $latest = static::where('user_number', 'like', $prefix . '%')
-            ->orderByRaw('CAST(SUBSTRING(user_number, ?) AS ' . $castType . ') DESC', [strlen($prefix) + 1])
+            ->orderByRaw('LENGTH(user_number) DESC, user_number DESC')
             ->first();
 
         $nextId = $latest
