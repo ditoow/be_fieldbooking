@@ -20,6 +20,8 @@ class UpdateFieldRequest extends FormRequest
             'status' => 'nullable|in:available,maintenance',
             'surface_type' => 'nullable|in:vinyl,parket,semen',
             'image_file' => 'nullable|image|max:2048',
+            'carousel_urls' => 'nullable|array',
+            'carousel_urls.*' => 'url',
         ];
     }
 }

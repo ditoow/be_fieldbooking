@@ -15,9 +15,15 @@ class FieldSeeder extends Seeder
                 'description' => 'Lapangan futsal standar internasional dengan karpet vinyl sintetis premium dan ventilasi modern.',
                 'surface_type' => 'vinyl',
                 'rating' => 4.8,
-                'image_url' => 'https://qcizbglhafqgrphobbly.supabase.co/storage/v1/object/public/Field-Image/field-images/Futsal%20-%20Sintesis%20Small.png',
+                'image_url' => 'https://ruvikuwgtggtcmksafts.supabase.co/storage/v1/object/public/Field-Image/Main%20Futsal_6a30524c055db.webp',
                 'category' => 'Futsal',
                 'status' => 'available',
+                'carousel_urls' => [
+                    'https://ruvikuwgtggtcmksafts.supabase.co/storage/v1/object/public/Field-Image/Carousel%201%20Futsal_6a305249cb4c6.webp',
+                    'https://ruvikuwgtggtcmksafts.supabase.co/storage/v1/object/public/Field-Image/Carousel%202%20Futsal_6a30524a64a2f.webp',
+                    'https://ruvikuwgtggtcmksafts.supabase.co/storage/v1/object/public/Field-Image/Carousel%203%20Futsal_6a30524aee249.webp',
+                    'https://ruvikuwgtggtcmksafts.supabase.co/storage/v1/object/public/Field-Image/Carousel%204%20Futsal_6a30524b7bfab.webp',
+                ],
             ],
             [
                 'name' => 'Arena Basket Indoor B',
@@ -62,6 +68,7 @@ class FieldSeeder extends Seeder
                 'name' => $fieldData['name'],
                 'image_url' => $fieldData['image_url'],
                 'category' => $fieldData['category'],
+                'carousel_urls' => $fieldData['carousel_urls'] ?? null,
             ]);
 
             $field->detail()->create([

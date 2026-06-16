@@ -21,6 +21,7 @@ class FieldResource extends JsonResource
             'surface_type' => $this->detail?->surface_type,
             'rating' => (float) ($this->detail?->rating ?? 0.0),
             'image_url' => $this->image_url,
+            'carousel_urls' => $this->carousel_urls ?? [],
             'category' => $this->category,
             'status' => $this->detail?->status,
             'price_min' => $this->price_min ?? null,

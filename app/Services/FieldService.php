@@ -27,6 +27,7 @@ class FieldService
                 'name' => $data['name'],
                 'image_url' => $data['image_url'] ?? null,
                 'category' => $data['category'],
+                'carousel_urls' => $data['carousel_urls'] ?? null,
             ]);
 
             $field->detail()->create([
@@ -76,7 +77,7 @@ class FieldService
                 $data['image_url'] = $this->uploadFoto($data['image_file'])['url'];
             }
 
-            $fieldData = array_intersect_key($data, array_flip(['name', 'image_url', 'category']));
+            $fieldData = array_intersect_key($data, array_flip(['name', 'image_url', 'category', 'carousel_urls']));
             if (!empty($fieldData)) {
                 $field->update($fieldData);
             }
