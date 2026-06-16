@@ -23,6 +23,9 @@ return new class extends Migration
             $table->enum('status', ['active', 'suspended'])->default('active');
             $table->rememberToken();
             $table->timestamps();
+
+            $table->index('status', 'idx_users_status');
+            $table->index('created_at', 'idx_users_created_at');
         });
 
         // Tabel bawaan Laravel untuk reset password

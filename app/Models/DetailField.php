@@ -17,6 +17,11 @@ class DetailField extends Model
         'surface_type',
         'rating',
         'status',
+        'carousel_urls',
+    ];
+
+    protected $casts = [
+        'carousel_urls' => 'array',
     ];
 
     public function field(): BelongsTo

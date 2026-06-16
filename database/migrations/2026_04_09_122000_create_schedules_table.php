@@ -21,6 +21,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['field_id', 'date', 'start_time']);
+            $table->index(['field_id', 'date'], 'idx_schedules_field_id_date');
         });
     }
 

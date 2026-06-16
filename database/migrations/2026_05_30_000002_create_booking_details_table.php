@@ -16,6 +16,8 @@ return new class extends Migration
             $table->foreignId('booking_id')->constrained('bookings')->cascadeOnDelete();
             $table->foreignId('schedule_id')->constrained('schedules');
             $table->timestamps();
+
+            $table->index(['booking_id', 'schedule_id'], 'idx_booking_details_booking_id_schedule_id');
         });
     }
 

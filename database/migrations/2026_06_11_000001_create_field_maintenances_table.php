@@ -21,6 +21,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['field_id', 'date', 'start_time']);
+            $table->index(['field_id', 'date'], 'idx_field_maintenances_field_id_date');
         });
     }
 

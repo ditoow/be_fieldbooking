@@ -94,7 +94,6 @@ class FieldSeeder extends Seeder
                 'name' => $fieldData['name'],
                 'image_url' => $fieldData['image_url'],
                 'category' => $fieldData['category'],
-                'carousel_urls' => $fieldData['carousel_urls'] ?? null,
             ]);
 
             $field->detail()->create([
@@ -102,6 +101,7 @@ class FieldSeeder extends Seeder
                 'surface_type' => $fieldData['surface_type'],
                 'rating' => $fieldData['rating'],
                 'status' => $fieldData['status'],
+                'carousel_urls' => $fieldData['carousel_urls'] ?? null,
             ]);
         }
     }

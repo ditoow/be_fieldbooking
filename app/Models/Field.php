@@ -21,11 +21,6 @@ class Field extends Model
         'name',
         'image_url',
         'category',
-        'carousel_urls',
-    ];
-
-    protected $casts = [
-        'carousel_urls' => 'array',
     ];
 
     public function detail(): HasOne

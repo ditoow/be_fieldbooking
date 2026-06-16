@@ -18,6 +18,10 @@ return new class extends Migration
             $table->text('description');
             $table->string('user_name');
             $table->timestamps();
+
+            $table->index('created_at', 'idx_activity_logs_created_at');
+            $table->uuid('user_id')->nullable();
+            $table->foreign('user_id')->references('id')->on('users')->nullOnDelete();
         });
     }
 

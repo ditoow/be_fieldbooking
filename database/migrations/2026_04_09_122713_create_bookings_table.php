@@ -25,6 +25,14 @@ return new class extends Migration
             $table->boolean("is_attended")->default(false)->nullable();
             $table->timestamp("attended_at")->nullable();
             $table->timestamps();
+
+            $table->index('user_id', 'idx_bookings_user_id');
+            $table->index('status', 'idx_bookings_status');
+            $table->index('expires_at', 'idx_bookings_expires_at');
+            $table->index('booking_type', 'idx_bookings_booking_type');
+            $table->index('created_at', 'idx_bookings_created_at');
+            $table->index(['status', 'expires_at'], 'idx_bookings_status_expires_at');
+            $table->index(['user_id', 'status'], 'idx_bookings_user_id_status');
         });
     }
 

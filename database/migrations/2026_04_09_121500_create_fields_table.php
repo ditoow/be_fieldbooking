@@ -17,6 +17,9 @@ return new class extends Migration
             $table->string('image_url')->nullable();
             $table->string('category');
             $table->timestamps();
+
+            $table->index('category', 'idx_fields_category');
+            $table->softDeletes();
         });
     }
 
