@@ -9,20 +9,22 @@ class FieldSeeder extends Seeder
 {
     public function run(): void
     {
+        $base = 'https://ruvikuwgtggtcmksafts.supabase.co/storage/v1/object/public/Field-Image';
+
         $fields = [
             [
                 'name' => 'Lapangan Futsal Internasional A',
                 'description' => 'Lapangan futsal standar internasional dengan karpet vinyl sintetis premium dan ventilasi modern.',
                 'surface_type' => 'vinyl',
                 'rating' => 4.8,
-                'image_url' => 'https://ruvikuwgtggtcmksafts.supabase.co/storage/v1/object/public/Field-Image/Main%20Futsal_6a30524c055db.webp',
+                'image_url' => "$base/Main%20Futsal.webp",
                 'category' => 'Futsal',
                 'status' => 'available',
                 'carousel_urls' => [
-                    'https://ruvikuwgtggtcmksafts.supabase.co/storage/v1/object/public/Field-Image/Carousel%201%20Futsal_6a305249cb4c6.webp',
-                    'https://ruvikuwgtggtcmksafts.supabase.co/storage/v1/object/public/Field-Image/Carousel%202%20Futsal_6a30524a64a2f.webp',
-                    'https://ruvikuwgtggtcmksafts.supabase.co/storage/v1/object/public/Field-Image/Carousel%203%20Futsal_6a30524aee249.webp',
-                    'https://ruvikuwgtggtcmksafts.supabase.co/storage/v1/object/public/Field-Image/Carousel%204%20Futsal_6a30524b7bfab.webp',
+                    "$base/Carousel%201%20Futsal.webp",
+                    "$base/Carousel%202%20Futsal.webp",
+                    "$base/Carousel%203%20Futsal.webp",
+                    "$base/Carousel%204%20Futsal.webp",
                 ],
             ],
             [
@@ -30,36 +32,60 @@ class FieldSeeder extends Seeder
                 'description' => 'Lapangan basket indoor berkualitas tinggi dengan lantai kayu parket impor standar NBA.',
                 'surface_type' => 'parket',
                 'rating' => 4.9,
-                'image_url' => 'https://qcizbglhafqgrphobbly.supabase.co/storage/v1/object/public/Field-Image/field-images/Basket%20-%20Kayu%20Small.png',
+                'image_url' => "$base/Main%20Basket.webp",
                 'category' => 'Basket',
                 'status' => 'available',
+                'carousel_urls' => [
+                    "$base/Carousel%201%20Basket.webp",
+                    "$base/Carousel%202%20Basket.webp",
+                    "$base/Carousel%203%20Basket.webp",
+                    "$base/Carousel%204%20Basket.webp",
+                ],
             ],
             [
                 'name' => 'Court Badminton Garuda',
                 'description' => 'Lapangan badminton indoor karpet vinyl hijau profesional dengan pencahayaan LED anti-silau.',
                 'surface_type' => 'vinyl',
                 'rating' => 4.7,
-                'image_url' => 'https://qcizbglhafqgrphobbly.supabase.co/storage/v1/object/public/Field-Image/field-images/Badminton%20-%20Vinyl%20Small.png',
+                'image_url' => "$base/Main%20Badminton.webp",
                 'category' => 'Badminton',
                 'status' => 'available',
+                'carousel_urls' => [
+                    "$base/Carousel%201%20Badminton.webp",
+                    "$base/Carousel%202%20Badminton.webp",
+                    "$base/Carousel%203%20Badminton.webp",
+                    "$base/Carousel%204%20Badminton.webp",
+                ],
             ],
             [
                 'name' => 'Court Tennis Green Wave',
                 'description' => 'Lapangan tennis hard court outdoor dengan permukaan semen halus berkualitas tinggi.',
                 'surface_type' => 'semen',
                 'rating' => 4.6,
-                'image_url' => 'https://qcizbglhafqgrphobbly.supabase.co/storage/v1/object/public/Field-Image/field-images/Tennis%20-%20Semen%20:%20Hard%20Court%20Small.png',
+                'image_url' => "$base/Main%20Tennis.webp",
                 'category' => 'Tennis',
                 'status' => 'available',
+                'carousel_urls' => [
+                    "$base/Carousel%201%20Tennis.webp",
+                    "$base/Carousel%202%20Tennis.webp",
+                    "$base/Carousel%203%20Tennis.webp",
+                    "$base/Carousel%204%20Tennis.webp",
+                ],
             ],
             [
                 'name' => 'Arena Voli Thunder Dome',
                 'description' => 'Lapangan voli indoor lantai vinyl empuk dengan net standar internasional.',
                 'surface_type' => 'vinyl',
                 'rating' => 4.5,
-                'image_url' => 'https://qcizbglhafqgrphobbly.supabase.co/storage/v1/object/public/Field-Image/field-images/Voli%20-%20Vinyl%20Small.png',
+                'image_url' => "$base/Main%20Voli.webp",
                 'category' => 'Voli',
                 'status' => 'maintenance',
+                'carousel_urls' => [
+                    "$base/Carousel%201%20Voli.webp",
+                    "$base/Carousel%202%20Voli.webp",
+                    "$base/Carousel%203%20Voli.webp",
+                    "$base/Carousel%204%20Voli.webp",
+                ],
             ],
         ];
 

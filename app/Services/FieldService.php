@@ -43,7 +43,7 @@ class FieldService
 
     public function getAllFields($filters = [])
     {
-        $query = Field::with('detail')->query();
+        $query = Field::with('detail');
 
         $query->when($filters['category'] ?? null, function ($q, $category){
             return $q->where('category', $category);
