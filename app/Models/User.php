@@ -25,6 +25,8 @@ class User extends Authenticatable implements JWTSubject
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, HasUuids, HasRoles;
 
+    protected $guard_name = 'web';
+
     public function getJWTIdentifier()
     {
         return $this->getKey();

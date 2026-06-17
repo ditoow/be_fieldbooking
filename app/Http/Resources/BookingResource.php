@@ -28,6 +28,17 @@ class BookingResource extends JsonResource
             }
         }
 
+        $fieldImageUrl = null;
+        $fieldCategory = 'Umum';
+
+        if ($firstSchedule && $firstSchedule->field) {
+            $field = $firstSchedule->field;
+            $fieldCategory = $field->category;
+            $fieldImageUrl = $field->image_url
+                ? (filter_var($field->image_url, FILTER_VALIDATE_URL) ? $field->image_url : asset('storage/' . $field->image_url))
+                : null;
+        }
+
         return [
             'id' => $this->id,
             'booking_number' => $this->booking_number,
@@ -42,7 +53,10 @@ class BookingResource extends JsonResource
             'is_attended' => $this->is_attended,
             'attended_at' => $this->attended_at?->toIso8601String(),
             'expires_at' => $this->expires_at?->toIso8601String(),
+            'is_reviewed' => $this->rating !== null,
             'field_name' => $fieldName,
+            'field_image_url' => $fieldImageUrl,
+            'field_category' => $fieldCategory,
             'formatted_date' => $formattedDate,
             'formatted_time' => $formattedTime,
             'schedules' => ScheduleResource::collection($this->whenLoaded('schedules')),

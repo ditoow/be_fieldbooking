@@ -40,8 +40,6 @@ class BookingSeeder extends Seeder
                 'booking_id' => $booking1->id,
                 'schedule_id' => $scheduleMhs1->id,
             ]);
-
-            $scheduleMhs1->update(['status' => 'booked']);
         }
 
         $scheduleMhs2 = Schedule::where('field_id', 1)
@@ -88,8 +86,6 @@ class BookingSeeder extends Seeder
                 'booking_id' => $booking3->id,
                 'schedule_id' => $scheduleUmum1->id,
             ]);
-
-            $scheduleUmum1->update(['status' => 'booked']);
         }
     }
 }

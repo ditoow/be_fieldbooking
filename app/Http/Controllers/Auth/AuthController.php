@@ -28,9 +28,10 @@ class AuthController extends Controller
             ], 401);
         }
 
+        $user = Auth::guard('api')->user()->load('roles');
         return response()->json([
             'token' => $token,
-            'user' => Auth::guard('api')->user()
+            'user' => $user
         ]);
     }
 
@@ -89,5 +90,55 @@ class AuthController extends Controller
         } else {
             $user->syncRoles(['umum']);
         }
+    }
+
+    public function updateProfile(\Illuminate\Http\Request $request)
+    {
+        $user = Auth::guard('api')->user();
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
+            'phone' => 'nullable|string|max:20',
+        ]);
+
+        $user->update([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'phone' => $validated['phone'],
+        ]);
+
+        $this->syncRoleByEmailSuffix($user);
+
+        $user->load('roles');
+
+        return response()->json([
+            'message' => 'Profile updated successfully!',
+            'user' => $user
+        ]);
+    }
+
+    public function updatePassword(\Illuminate\Http\Request $request)
+    {
+        $user = Auth::guard('api')->user();
+
+        $request->validate([
+            'current_password' => 'required|string',
+            'new_password' => ['required', 'confirmed', \Illuminate\Validation\Rules\Password::min(8)->letters()->numbers()],
+        ]);
+
+        if (!Hash::check($request->current_password, $user->password)) {
+            return response()->json([
+                'message' => 'Password sekarang tidak cocok dengan data kami.'
+            ], 422);
+        }
+
+        $user->update([
+            'password' => Hash::make($request->new_password)
+        ]);
+
+        return response()->json([
+            'message' => 'Password updated successfully!'
+        ]);
     }
 }

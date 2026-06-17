@@ -27,6 +27,8 @@ class FieldResource extends JsonResource
             'price_min' => $this->price_min ?? null,
             'price_max' => $this->price_max ?? null,
             'schedules' => ScheduleResource::collection($this->whenLoaded('schedules')),
+            'available_slots_today' => $this->available_slots_today ?? 0,
+            'specifications' => $this->detail?->specifications ?? [],
         ];
     }
 }

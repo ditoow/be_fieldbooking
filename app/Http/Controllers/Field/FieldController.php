@@ -29,6 +29,7 @@ class FieldController extends Controller
         return new FieldResource($field);
     }
 
+
     public function uploadFoto(UploadFotoRequest $request)
     {
         $result = $this->fieldService->uploadFoto($request->file('foto'));

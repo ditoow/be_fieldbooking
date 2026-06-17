@@ -38,6 +38,11 @@ class Field extends Model
         return $this->hasMany(FieldMaintenance::class, 'field_id');
     }
 
+    public function ratings(): HasMany
+    {
+        return $this->hasMany(Rating::class, 'field_id');
+    }
+
     public function getDescriptionAttribute(): ?string
     {
         return $this->detail?->description;

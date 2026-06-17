@@ -7,6 +7,39 @@ use Illuminate\Database\Seeder;
 
 class FieldSeeder extends Seeder
 {
+    protected array $specsByCategory = [
+        'Futsal' => [
+            ['label' => 'Ukuran Lapangan', 'value' => '25m × 16m (Standar FIFA)'],
+            ['label' => 'Pencahayaan', 'value' => 'LED 500 Lux Anti-Silau'],
+            ['label' => 'Kapasitas Pemain', 'value' => '5 vs 5 (10 pemain)'],
+            ['label' => 'Fasilitas', 'value' => 'Bola, Cone, Rompi Latihan'],
+        ],
+        'Basket' => [
+            ['label' => 'Ukuran Lapangan', 'value' => '28m × 15m (Standar FIBA)'],
+            ['label' => 'Pencahayaan', 'value' => 'LED 750 Lux Merata'],
+            ['label' => 'Kapasitas Pemain', 'value' => '5 vs 5 (10 pemain)'],
+            ['label' => 'Fasilitas', 'value' => 'Bola Basket, Scoreboard Digital'],
+        ],
+        'Badminton' => [
+            ['label' => 'Ukuran Lapangan', 'value' => '13.4m × 6.1m (Standar BWF)'],
+            ['label' => 'Pencahayaan', 'value' => 'LED 400 Lux Anti-Silau'],
+            ['label' => 'Tinggi Net', 'value' => '1.55m (Standar)'],
+            ['label' => 'Fasilitas', 'value' => 'Shuttlecock Sewa, Raket Sewa'],
+        ],
+        'Tennis' => [
+            ['label' => 'Ukuran Lapangan', 'value' => '23.77m × 10.97m (Standar ITF)'],
+            ['label' => 'Pencahayaan', 'value' => 'LED 600 Lux'],
+            ['label' => 'Kapasitas Penonton', 'value' => '50 kursi tribun'],
+            ['label' => 'Fasilitas', 'value' => 'Bola Sewa, Raket Sewa'],
+        ],
+        'Voli' => [
+            ['label' => 'Ukuran Lapangan', 'value' => '18m × 9m (Standar FIVB)'],
+            ['label' => 'Pencahayaan', 'value' => 'LED 500 Lux'],
+            ['label' => 'Tinggi Net', 'value' => '2.43m / 2.24m (Putra/Putri)'],
+            ['label' => 'Fasilitas', 'value' => 'Bola Voli, Sound System'],
+        ],
+    ];
+
     public function run(): void
     {
         $base = 'https://ruvikuwgtggtcmksafts.supabase.co/storage/v1/object/public/Field-Image';
@@ -90,6 +123,9 @@ class FieldSeeder extends Seeder
         ];
 
         foreach ($fields as $fieldData) {
+            $category = $fieldData['category'];
+            $specifications = $this->specsByCategory[$category] ?? [];
+
             $field = Field::create([
                 'name' => $fieldData['name'],
                 'image_url' => $fieldData['image_url'],
@@ -102,6 +138,7 @@ class FieldSeeder extends Seeder
                 'rating' => $fieldData['rating'],
                 'status' => $fieldData['status'],
                 'carousel_urls' => $fieldData['carousel_urls'] ?? null,
+                'specifications' => $specifications,
             ]);
         }
     }

@@ -14,7 +14,6 @@ class RescheduleBookingRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'old_schedule_id' => 'required|exists:schedules,id',
             'field_id' => 'required|exists:fields,id',
             'date' => 'required|date|after_or_equal:today',
             'new_time_slot' => 'required|string|regex:/^\d{2}:00$/',

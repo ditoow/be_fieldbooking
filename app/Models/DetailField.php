@@ -18,10 +18,12 @@ class DetailField extends Model
         'rating',
         'status',
         'carousel_urls',
+        'specifications',
     ];
 
     protected $casts = [
         'carousel_urls' => 'array',
+        'specifications' => 'array',
     ];
 
     public function field(): BelongsTo

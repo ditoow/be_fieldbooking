@@ -7,11 +7,23 @@ use App\Http\Resources\NotificationResource;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
+use App\Services\BookingService;
+
 class NotificationController extends Controller
 {
+    protected BookingService $bookingService;
+
+    public function __construct(BookingService $bookingService)
+    {
+        $this->bookingService = $bookingService;
+    }
+
     public function index()
     {
         $user = Auth::guard('api')->user();
+
+        $this->bookingService->triggerPendingRatingNotifications($user);
+
         $notifications = $user->notifications()->orderBy('created_at', 'desc')->get();
 
         return NotificationResource::collection($notifications);

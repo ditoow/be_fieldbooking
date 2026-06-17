@@ -153,7 +153,26 @@ class ScheduleService
             ->first();
 
         if ($existing) {
-            throw new \Exception("Schedule slot on {$date} at {$startTime} is not available.");
+            // Cek apakah schedule masih terikat booking aktif
+            $hasActiveBooking = $existing->bookings()
+                ->where(function ($q) {
+                    $q->where('status', 'approved')
+                      ->orWhere(function ($qp) {
+                          $qp->where('status', 'pending')
+                             ->where(function ($qe) {
+                                 $qe->whereNull('expires_at')
+                                    ->orWhere('expires_at', '>=', now());
+                             });
+                      });
+                })
+                ->exists();
+
+            if ($hasActiveBooking) {
+                throw new \Exception("Schedule slot on {$date} at {$startTime} is not available.");
+            }
+
+            // Schedule hanya terikat booking expired/cancelled — re-use
+            return $existing;
         }
 
         return Schedule::create([

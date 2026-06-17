@@ -22,13 +22,13 @@ Route::post('login', [AuthController::class, 'login'])->middleware('throttle:aut
 Route::post('/payment/midtrans-callback', [PaymentController::class, 'handleWebhook'])->middleware('throttle:20,1');
 
 Route::get('/fields', [FieldController::class, 'index']);
+Route::get('/fields/{id}', [FieldController::class, 'show']);
+Route::get('/fields/{id}/ratings', [\App\Http\Controllers\Rating\RatingController::class, 'indexFieldRatings']);
 Route::get('/schedules', [ScheduleController::class, 'index']);
 
 Route::middleware('auth:api')->group(function () {
 
     Route::post('/logout', [AuthController::class, 'logout']);
-
-    Route::get('/fields/{id}', [FieldController::class, 'show']);
 
     Route::post('/bookings', [BookingController::class, 'store']);
     Route::get('/bookings', [BookingController::class, 'index']);
@@ -36,6 +36,7 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/bookings/{id}/upload', [BookingController::class, 'upload']);
     Route::patch('/bookings/{id}/reschedule', [BookingController::class, 'reschedule']);
     Route::patch('/bookings/{id}/cancel', [BookingController::class, 'cancel']);
+    Route::post('/bookings/{id}/rating', [\App\Http\Controllers\Rating\RatingController::class, 'store']);
 
     Route::middleware('role:admin')->group(function () {
         Route::post('/admin/fields', [AdminFieldController::class, 'storeField']);
@@ -63,8 +64,11 @@ Route::middleware('auth:api')->group(function () {
     });
 
     Route::get('/user', function () {
-        return Auth::guard('api')->user();
+        return Auth::guard('api')->user()->load('roles');
     });
+
+    Route::put('/user/profile', [AuthController::class, 'updateProfile']);
+    Route::put('/user/password', [AuthController::class, 'updatePassword']);
 
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::patch('/notifications/{id}/read', [NotificationController::class, 'read']);

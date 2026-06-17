@@ -45,9 +45,14 @@ class BookingController extends Controller
     public function index(Request $request)
     {
         $user = Auth::guard('api')->user();
-        $filters = $request->only(['status']);
-        $perPage = $request->integer('per_page', 10);
-        $bookings = $this->bookingService->getUserBookings($user, $filters, $perPage);
+
+        if ($user->hasRole('admin')) {
+            $filters = $request->only(['status', 'booking_type', 'user_id', 'field_id', 'date', 'search']);
+            $bookings = $this->bookingService->getAllBookings($filters);
+        } else {
+            $filters = $request->only(['status']);
+            $bookings = $this->bookingService->getUserBookings($user, $filters);
+        }
 
         return BookingResource::collection($bookings);
     }
@@ -93,7 +98,6 @@ class BookingController extends Controller
             $booking = $this->bookingService->rescheduleBooking(
                 $user,
                 $id,
-                $request->old_schedule_id,
                 (int) $request->field_id,
                 $request->date,
                 $request->new_time_slot

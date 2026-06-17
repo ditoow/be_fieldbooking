@@ -10,10 +10,12 @@ use Intervention\Image\Laravel\Facades\Image;
 class FieldService
 {
     protected SupabaseService $supabaseService;
+    protected ScheduleService $scheduleService;
 
-    public function __construct(SupabaseService $supabaseService)
+    public function __construct(SupabaseService $supabaseService, ScheduleService $scheduleService)
     {
         $this->supabaseService = $supabaseService;
+        $this->scheduleService = $scheduleService;
     }
 
     public function createField(array $data)
@@ -35,6 +37,7 @@ class FieldService
                 'rating' => $data['rating'] ?? 0.0,
                 'status' => $data['status'] ?? 'available',
                 'carousel_urls' => $data['carousel_urls'] ?? null,
+                'specifications' => $data['specifications'] ?? null,
             ]);
 
             return $field;
@@ -64,10 +67,44 @@ class FieldService
 
     public function getFieldById(int $id)
     {
-        $field = Field::with('detail')->findOrFail($id);
+        $field = Field::with(['detail', 'schedules'])->findOrFail($id);
         $field->price_min = config('pricing.before_16');
         $field->price_max = config('pricing.after_16');
+        $field->available_slots_today = $this->countAvailableSlotsToday($id);
         return $field;
+    }
+
+    public function getFieldByName(string $name, ?int $disambiguateId = null)
+    {
+        $query = Field::with(['detail', 'schedules'])->whereRaw('LOWER(name) = ?', [strtolower($name)]);
+
+        if ($disambiguateId) {
+            $query->where('id', $disambiguateId);
+        }
+
+        $field = $query->first();
+
+        if (!$field) {
+            return null;
+        }
+
+        $field->price_min = config('pricing.before_16');
+        $field->price_max = config('pricing.after_16');
+        $field->available_slots_today = $this->countAvailableSlotsToday($field->id);
+        return $field;
+    }
+
+    protected function countAvailableSlotsToday(int $fieldId): int
+    {
+        $today = now()->toDateString();
+        $now = now();
+        $slots = $this->scheduleService->getAllSlots($fieldId, $today);
+        return collect($slots)
+            ->where('status', 'available')
+            ->filter(function ($slot) use ($now) {
+                return $slot['start_time'] >= $now->format('H:i');
+            })
+            ->count();
     }
 
     public function updateField(Field $field, array $data)
@@ -82,7 +119,7 @@ class FieldService
                 $field->update($fieldData);
             }
 
-            $detailData = array_intersect_key($data, array_flip(['description', 'surface_type', 'rating', 'status', 'carousel_urls']));
+            $detailData = array_intersect_key($data, array_flip(['description', 'surface_type', 'rating', 'status', 'carousel_urls', 'specifications']));
             if (!empty($detailData)) {
                 $field->detail()->update($detailData);
             }

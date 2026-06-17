@@ -11,6 +11,7 @@ use App\Models\Reschedule;
 use Illuminate\Support\Facades\DB;
 use App\Models\ActivityLog;
 use App\Models\Media;
+use Illuminate\Support\Facades\Log;
 
 class BookingService
 {
@@ -129,21 +130,21 @@ class BookingService
     {
         $this->cleanupExpiredBookings();
 
-        $query = Booking::with(['schedules.field', 'user'])
+        $query = Booking::with(['schedules.field', 'user', 'rating'])
             ->where('user_id', $user->id);
 
         if (isset($filters['status'])) {
             $query->where('status', $filters['status']);
         }
 
-        return $query->orderBy('created_at', 'desc')->paginate($perPage);
+        return $query->orderBy('created_at', 'desc')->get();
     }
 
     public function getBookingById(int $bookingId, User $user)
     {
         $this->cleanupExpiredBookings();
 
-        $booking = Booking::with(['schedules.field', 'user'])
+        $booking = Booking::with(['schedules.field', 'user', 'rating'])
             ->where('id', $bookingId)
             ->where('user_id', $user->id)
             ->firstOrFail();
@@ -249,7 +250,7 @@ class BookingService
     {
         $this->cleanupExpiredBookings();
 
-        $query = Booking::with(['schedules.field', 'user']);
+        $query = Booking::with(['schedules.field', 'user', 'rating']);
 
         if (isset($filters['status']) && !empty($filters['status'])) {
             $query->where('status', $filters['status']);
@@ -286,7 +287,7 @@ class BookingService
             });
         }
 
-        return $query->orderBy('created_at', 'desc')->paginate($perPage);
+        return $query->orderBy('created_at', 'desc')->get();
     }
 
     public function approveBooking(Booking $booking)
@@ -394,9 +395,13 @@ class BookingService
             ->get();
     }
 
-    public function rescheduleBooking(User $user, int $bookingId, int $oldScheduleId, int $fieldId, string $date, string $newTimeSlot)
+    public function rescheduleBooking(User $user, int $bookingId, int $fieldId, string $date, string $newStartTimeSlot)
     {
         $booking = Booking::with('schedules')->where('id', $bookingId)->where('user_id', $user->id)->firstOrFail();
+
+        if (Reschedule::where('booking_id', $bookingId)->exists()) {
+            throw new \Exception('This booking has already been rescheduled. Rescheduling is limited to 1 time only.');
+        }
 
         if (!$user->hasRole('mahasiswa')) {
             throw new \Exception('Free reschedule is only available for students.');
@@ -406,46 +411,71 @@ class BookingService
             throw new \Exception('Only active bookings can be rescheduled.');
         }
 
-        $oldSchedule = $booking->schedules->where('id', $oldScheduleId)->first();
-        if (!$oldSchedule) {
-            throw new \Exception('Old schedule not found in this booking.');
+        $numSlots = $booking->schedules->count();
+        if ($numSlots === 0) {
+            throw new \Exception('Booking has no valid schedules.');
         }
 
-        $scheduleDateTime = \Carbon\Carbon::parse($oldSchedule->date . ' ' . $oldSchedule->start_time);
+        // Cek waktu jadwal mulai paling awal
+        $firstSchedule = $booking->schedules->sortBy(function ($schedule) {
+            return $schedule->date . ' ' . $schedule->start_time;
+        })->first();
+
+        $scheduleDateTime = \Carbon\Carbon::parse($firstSchedule->date . ' ' . $firstSchedule->start_time);
         if (now()->diffInHours($scheduleDateTime, false) < 2) {
             throw new \Exception('Reschedule can only be requested up to 2 hours before the schedule starts.');
         }
 
-        // Cek slot baru available
-        if (!$this->scheduleService->isSlotAvailable($fieldId, $date, $newTimeSlot)) {
-            throw new \Exception('The new schedule you selected is not available.');
+        // Generate consecutive slots
+        $startHour = (int) substr($newStartTimeSlot, 0, 2);
+        $newSlots = [];
+        for ($i = 0; $i < $numSlots; $i++) {
+            $hour = $startHour + $i;
+            if ($hour >= 24) {
+                throw new \Exception('Jadwal baru melewati batas waktu operasional (24:00).');
+            }
+            $newSlots[] = sprintf('%02d:00', $hour);
         }
 
-        return DB::transaction(function () use ($booking, $oldSchedule, $fieldId, $date, $newTimeSlot) {
-            $oldScheduleId = $oldSchedule->id;
-
-            // Buat schedule baru on-demand
-            $newSchedule = $this->scheduleService->createScheduleForBooking($fieldId, $date, $newTimeSlot);
-
-            BookingDetail::query()->where('booking_id', $booking->id)
-                ->where('schedule_id', $oldScheduleId)
-                ->update(['schedule_id' => $newSchedule->id]);
-
-            // Update total price
-            $currentScheduleIds = $booking->schedules()->pluck('schedules.id')->toArray();
-            $key = array_search($oldScheduleId, $currentScheduleIds);
-            if ($key !== false) {
-                $currentScheduleIds[$key] = $newSchedule->id;
+        // Validasi ketersediaan semua slot
+        foreach ($newSlots as $slot) {
+            if (!$this->scheduleService->isSlotAvailable($fieldId, $date, $slot)) {
+                throw new \Exception("Sesi pada jam {$slot} tidak tersedia.");
             }
-            $schedules = Schedule::query()->findMany($currentScheduleIds);
+        }
+
+        return DB::transaction(function () use ($booking, $fieldId, $date, $newSlots) {
+            $sortedOldSchedules = $booking->schedules->sortBy(function ($schedule) {
+                return $schedule->date . ' ' . $schedule->start_time;
+            })->values();
+
+            $newScheduleIds = [];
+
+            for ($i = 0; $i < $sortedOldSchedules->count(); $i++) {
+                $oldSchedule = $sortedOldSchedules[$i];
+                $newSlot = $newSlots[$i];
+
+                // Buat schedule baru
+                $newSchedule = $this->scheduleService->createScheduleForBooking($fieldId, $date, $newSlot);
+                $newScheduleIds[] = $newSchedule->id;
+
+                // Update detail
+                BookingDetail::query()->where('booking_id', $booking->id)
+                    ->where('schedule_id', $oldSchedule->id)
+                    ->update(['schedule_id' => $newSchedule->id]);
+
+                // Buat history reschedule untuk slot ini
+                Reschedule::create([
+                    'booking_id' => $booking->id,
+                    'old_schedule_id' => $oldSchedule->id,
+                    'new_schedule_id' => $newSchedule->id,
+                ]);
+            }
+
+            // Update total price booking
+            $schedules = Schedule::query()->findMany($newScheduleIds);
             $newTotalPrice = $schedules->sum('price');
             $booking->update(['total_price' => $newTotalPrice]);
-
-            Reschedule::create([
-                'booking_id' => $booking->id,
-                'old_schedule_id' => $oldScheduleId,
-                'new_schedule_id' => $newSchedule->id,
-            ]);
 
             return $booking;
         });
@@ -597,6 +627,64 @@ class BookingService
                 'user_name' => $booking->user->name ?? 'System',
                 'user_id' => $booking->user_id,
             ]);
+        }
+
+        // Sync pending paid bookings directly with Midtrans to release slots if payment has expired/failed in Midtrans
+        $pendingPaidBookings = Booking::where('status', 'pending')
+            ->where('booking_type', 'paid')
+            ->whereNotNull('qr_id')
+            ->get();
+
+        foreach ($pendingPaidBookings as $booking) {
+            try {
+                $midtransStatus = $this->midtransService->checkTransactionStatus($booking->qr_id);
+                if ($midtransStatus) {
+                    $transactionStatus = $midtransStatus->transaction_status ?? null;
+                    if (in_array($transactionStatus, ['cancel', 'deny', 'expire'])) {
+                        $this->failPaidBooking($booking, $transactionStatus);
+                    } else if ($transactionStatus == 'settlement' || ($transactionStatus == 'capture' && ($midtransStatus->fraud_status ?? null) == 'accept')) {
+                        $this->approvePaidBooking($booking);
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::error("Failed to sync Midtrans status for booking {$booking->id} during cleanup: " . $e->getMessage());
+            }
+        }
+    }
+
+    public function triggerPendingRatingNotifications(User $user): void
+    {
+        $bookings = Booking::with(['schedules', 'rating'])
+            ->where('user_id', $user->id)
+            ->where('status', 'approved')
+            ->whereDoesntHave('rating')
+            ->get();
+
+        foreach ($bookings as $booking) {
+            $lastSchedule = $booking->schedules->sortByDesc(function ($schedule) {
+                return $schedule->date . ' ' . $schedule->end_time;
+            })->first();
+
+            if ($lastSchedule) {
+                $endDateTime = \Carbon\Carbon::parse($lastSchedule->date . ' ' . $lastSchedule->end_time);
+                if (now()->gt($endDateTime)) {
+                    $notificationExists = $user->notifications
+                        ->contains(function ($notification) use ($booking) {
+                            $data = $notification->data;
+                            return isset($data['booking_id']) && $data['booking_id'] == $booking->id
+                                && isset($data['type']) && $data['type'] === 'rating_reminder';
+                        });
+
+                    if (!$notificationExists) {
+                        $user->notify(new \App\Notifications\BookingNotification(
+                            'Beri Penilaian Lapangan',
+                            "Waktu bermain Anda untuk booking {$booking->booking_number} telah selesai. Berikan penilaian Anda sekarang!",
+                            'rating_reminder',
+                            $booking->id
+                        ));
+                    }
+                }
+            }
         }
     }
 }

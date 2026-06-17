@@ -27,6 +27,13 @@ return Application::configure(basePath: dirname(__DIR__))
     $middleware->api(prepend: [
         \Illuminate\Routing\Middleware\ThrottleRequests::class.':api',
     ]);
+
+    $middleware->redirectGuestsTo(function (Request $request) {
+        if ($request->is('api/*')) {
+            return null;
+        }
+        return '/login';
+    });
 })
 
     ->withExceptions(function (Exceptions $exceptions): void {
@@ -48,6 +55,19 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $exceptions->render(function (ThrottleRequestsException $e) {
             return response()->json(['message' => 'Too many requests. Please try again later.'], 429);
+        });
+
+        $exceptions->render(function (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'errors' => $e->errors(),
+            ], 422);
+        });
+
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], $e->getStatusCode());
         });
 
         $exceptions->render(function (Throwable $e) {

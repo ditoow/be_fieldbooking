@@ -13,8 +13,10 @@ class UpdateFieldRequest extends FormRequest
 
     public function rules(): array
     {
+        $fieldId = (int) $this->route('id');
+
         return [
-            'name' => 'nullable|string|max:255',
+            'name' => 'nullable|string|max:255|unique:fields,name,' . $fieldId,
             'description' => 'nullable|string',
             'category' => 'nullable|string',
             'status' => 'nullable|in:available,maintenance',
