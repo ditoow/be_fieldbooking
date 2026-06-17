@@ -50,6 +50,7 @@ class BookingResource extends JsonResource
                 : null,
             'qr_id' => $this->qr_id,
             'qr_string' => $this->qr_string,
+            'qr_image_url' => $this->qr_id ? "https://" . (config('services.midtrans.is_production') ? "api.midtrans.com" : "api.sandbox.midtrans.com") . "/v2/qris/" . $this->qr_id . "/qr-code" : null,
             'is_attended' => $this->is_attended,
             'attended_at' => $this->attended_at?->toIso8601String(),
             'expires_at' => $this->expires_at?->toIso8601String(),
