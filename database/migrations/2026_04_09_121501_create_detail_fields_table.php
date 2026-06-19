@@ -18,9 +18,8 @@ return new class extends Migration
              $table->enum('surface_type', ['vinyl', 'parket', 'semen'])->default('vinyl');
              $table->decimal('rating', 3, 1)->default(0.0);
              $table->enum('status', ['available', 'maintenance'])->default('available');
-             $table->json('carousel_urls')->nullable();
-             $table->json('specifications')->nullable();
-             $table->timestamps();
+              $table->json('carousel_urls')->nullable();
+              $table->timestamps();
 
              $table->index(['field_id', 'status'], 'idx_detail_fields_field_id_status');
          });

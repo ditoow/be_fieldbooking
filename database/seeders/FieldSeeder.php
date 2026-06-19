@@ -10,31 +10,31 @@ class FieldSeeder extends Seeder
     protected array $specsByCategory = [
         'Futsal' => [
             ['label' => 'Ukuran Lapangan', 'value' => '25m × 16m (Standar FIFA)'],
-            ['label' => 'Pencahayaan', 'value' => 'LED 500 Lux Anti-Silau'],
+            ['label' => 'Fitur Unggulan', 'value' => 'Lantai Vinyl Premium, AC, Kamar Ganti'],
             ['label' => 'Kapasitas Pemain', 'value' => '5 vs 5 (10 pemain)'],
             ['label' => 'Fasilitas', 'value' => 'Bola, Cone, Rompi Latihan'],
         ],
         'Basket' => [
             ['label' => 'Ukuran Lapangan', 'value' => '28m × 15m (Standar FIBA)'],
-            ['label' => 'Pencahayaan', 'value' => 'LED 750 Lux Merata'],
+            ['label' => 'Fitur Unggulan', 'value' => 'Lantai Parket Kayu Impor, Scoreboard Digital'],
             ['label' => 'Kapasitas Pemain', 'value' => '5 vs 5 (10 pemain)'],
             ['label' => 'Fasilitas', 'value' => 'Bola Basket, Scoreboard Digital'],
         ],
         'Badminton' => [
             ['label' => 'Ukuran Lapangan', 'value' => '13.4m × 6.1m (Standar BWF)'],
-            ['label' => 'Pencahayaan', 'value' => 'LED 400 Lux Anti-Silau'],
+            ['label' => 'Fitur Unggulan', 'value' => 'Karpel Vinyl Hijau, Lampu Non-Silau, AC'],
             ['label' => 'Tinggi Net', 'value' => '1.55m (Standar)'],
             ['label' => 'Fasilitas', 'value' => 'Shuttlecock Sewa, Raket Sewa'],
         ],
         'Tennis' => [
             ['label' => 'Ukuran Lapangan', 'value' => '23.77m × 10.97m (Standar ITF)'],
-            ['label' => 'Pencahayaan', 'value' => 'LED 600 Lux'],
+            ['label' => 'Fitur Unggulan', 'value' => 'Prefabrikasi Kualitas Tinggi, Lapangan Terang'],
             ['label' => 'Kapasitas Penonton', 'value' => '50 kursi tribun'],
             ['label' => 'Fasilitas', 'value' => 'Bola Sewa, Raket Sewa'],
         ],
         'Voli' => [
             ['label' => 'Ukuran Lapangan', 'value' => '18m × 9m (Standar FIVB)'],
-            ['label' => 'Pencahayaan', 'value' => 'LED 500 Lux'],
+            ['label' => 'Fitur Unggulan', 'value' => 'Lantai Vinyl Empuk, Sound System, AC'],
             ['label' => 'Tinggi Net', 'value' => '2.43m / 2.24m (Putra/Putri)'],
             ['label' => 'Fasilitas', 'value' => 'Bola Voli, Sound System'],
         ],
@@ -142,8 +142,8 @@ class FieldSeeder extends Seeder
 
             foreach ($specifications as $i => $spec) {
                 $field->specifications()->create([
-                    'label' => $spec['label'],
-                    'value' => $spec['value'],
+                    'name' => $spec['label'],
+                    'content' => $spec['value'],
                     'sort_order' => $i,
                 ]);
             }

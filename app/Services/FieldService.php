@@ -58,8 +58,8 @@ class FieldService
             if (!empty($data['specifications'])) {
                 foreach ($data['specifications'] as $i => $spec) {
                     $field->specifications()->create([
-                        'label' => $spec['label'],
-                        'value' => $spec['value'] ?? '',
+                        'name' => $spec['name'],
+                        'content' => $spec['content'] ?? '',
                         'sort_order' => $i,
                     ]);
                 }
@@ -155,8 +155,8 @@ class FieldService
                 $field->specifications()->delete();
                 foreach ($data['specifications'] as $i => $spec) {
                     $field->specifications()->create([
-                        'label' => $spec['label'],
-                        'value' => $spec['value'] ?? '',
+                        'name' => $spec['name'],
+                        'content' => $spec['content'] ?? '',
                         'sort_order' => $i,
                     ]);
                 }

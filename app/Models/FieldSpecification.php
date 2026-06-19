@@ -13,8 +13,8 @@ class FieldSpecification extends Model
 
     protected $fillable = [
         'field_id',
-        'label',
-        'value',
+        'name',
+        'content',
         'sort_order',
     ];
 

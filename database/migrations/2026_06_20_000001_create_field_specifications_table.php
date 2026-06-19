@@ -11,8 +11,8 @@ return new class extends Migration
         Schema::create('field_specifications', function (Blueprint $table) {
             $table->id();
             $table->foreignId('field_id')->constrained('fields')->cascadeOnDelete();
-            $table->string('label');
-            $table->string('value')->nullable();
+            $table->string('name');
+            $table->string('content')->nullable();
             $table->integer('sort_order')->default(0);
             $table->timestamps();
         });

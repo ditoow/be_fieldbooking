@@ -29,9 +29,8 @@ class FieldResource extends JsonResource
             'schedules' => ScheduleResource::collection($this->whenLoaded('schedules')),
             'available_slots_today' => $this->available_slots_today ?? 0,
             'specifications' => $this->whenLoaded('specifications', fn () =>
-                $this->specifications->map(fn ($s) => [
-                    'label' => $s->label,
-                    'value' => $s->value,
+                $this->specifications->mapWithKeys(fn ($s) => [
+                    $s->name => $s->content,
                 ])->toArray(),
                 []
             ),
