@@ -7,6 +7,7 @@ use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
@@ -52,21 +53,25 @@ class AuthController extends Controller
     public function register(RegisterRequest $request)
     {
         $validated = $request->validated();
-        $user = User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-            'phone' => $validated['phone'],
-            'student_id' => $validated['student_id'] ?? null,
-        ]);
-        
-        $this->syncRoleByEmailSuffix($user);
+        $user = DB::transaction(function () use ($validated) {
+            $user = User::create([
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'password' => Hash::make($validated['password']),
+                'phone' => $validated['phone'],
+                'student_id' => $validated['student_id'] ?? null,
+            ]);
 
-        $role = $user->getRoleNames()->first();
-        $userNumber = User::generateUserNumber($role);
-        if ($userNumber) {
-            $user->update(['user_number' => $userNumber]);
-        }
+            $this->syncRoleByEmailSuffix($user);
+
+            $role = $user->getRoleNames()->first();
+            $userNumber = User::generateUserNumber($role);
+            if ($userNumber) {
+                $user->update(['user_number' => $userNumber]);
+            }
+
+            return $user;
+        });
 
         \App\Models\ActivityLog::create([
             'type' => 'info',

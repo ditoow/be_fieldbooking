@@ -50,6 +50,10 @@ class AdminMaintenanceController extends Controller
             'reason' => $validated['reason'],
         ]);
 
+        if ($validated['date'] === now()->toDateString()) {
+            $field->detail()->update(['status' => 'maintenance']);
+        }
+
         return response()->json([
             'message' => 'Maintenance schedule added successfully.',
             'data' => $maintenance,
@@ -62,7 +66,16 @@ class AdminMaintenanceController extends Controller
     public function destroy(int $id)
     {
         $maintenance = FieldMaintenance::findOrFail($id);
+        $fieldId = $maintenance->field_id;
         $maintenance->delete();
+
+        $hasActiveToday = FieldMaintenance::where('field_id', $fieldId)
+            ->where('date', now()->toDateString())
+            ->exists();
+
+        if (!$hasActiveToday) {
+            Field::find($fieldId)?->detail()->update(['status' => 'available']);
+        }
 
         return response()->json([
             'success' => true,

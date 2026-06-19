@@ -82,6 +82,7 @@ class User extends Authenticatable implements JWTSubject
 
         $latest = static::query()->where('user_number', 'like', $prefix . '%')
             ->orderByRaw('LENGTH(user_number) DESC, user_number DESC')
+            ->lockForUpdate()
             ->first();
 
         $nextId = $latest

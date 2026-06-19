@@ -81,25 +81,18 @@ class BookingService
                 ]);
             }
 
+            if ($isUmum && $booking->booking_type === 'paid') {
+                $midtransResult = $this->midtransService->createQris($booking);
+                $booking->update([
+                    'qr_id' => $midtransResult['transaction_id'],
+                    'qr_string' => $midtransResult['qr_string'] ?? ($midtransResult['actions'][0]->url ?? null),
+                ]);
+            }
+
             return $booking;
         });
 
         if ($isUmum) {
-            try {
-                if ($booking->booking_type === 'paid') {
-                    $midtransResult = $this->midtransService->createQris($booking);
-                    $booking->update([
-                        'qr_id' => $midtransResult['transaction_id'],
-                        'qr_string' => $midtransResult['qr_string'] ?? ($midtransResult['actions'][0]->url ?? null),
-                    ]);
-                }
-            } catch (\Exception $e) {
-                DB::transaction(function () use ($booking) {
-                    $booking->transitionTo('rejected');
-                });
-                throw $e;
-            }
-
             $booking->load('schedules.field');
             $firstSchedule = $booking->schedules->sortBy('start_time')->first();
             $lastSchedule = $booking->schedules->sortBy('start_time')->last();
@@ -149,7 +142,7 @@ class BookingService
             ->where('user_id', $user->id)
             ->firstOrFail();
 
-        if ($booking->status === 'pending' && $booking->booking_type === 'paid' && $booking->qr_id) {
+        if ($booking->status === 'pending' && $booking->booking_type === 'paid' && $booking->qr_id && $booking->expires_at && $booking->expires_at > now()) {
             $midtransStatus = $this->midtransService->checkTransactionStatus($booking->qr_id);
             if ($midtransStatus) {
                 $transactionStatus = $midtransStatus->transaction_status ?? null;
@@ -287,7 +280,7 @@ class BookingService
             });
         }
 
-        return $query->orderBy('created_at', 'desc')->get();
+        return $query->orderBy('created_at', 'desc')->paginate($perPage);
     }
 
     public function approveBooking(Booking $booking)
@@ -302,8 +295,9 @@ class BookingService
         }
 
         $booking = DB::transaction(function () use ($booking) {
-            $booking->transitionTo('approved');
-            return $booking;
+            $fresh = Booking::where('id', $booking->id)->lockForUpdate()->firstOrFail();
+            $fresh->transitionTo('approved');
+            return $fresh;
         });
 
         $firstSchedule = $booking->schedules->sortBy('start_time')->first();
@@ -437,14 +431,12 @@ class BookingService
             $newSlots[] = sprintf('%02d:00', $hour);
         }
 
-        // Validasi ketersediaan semua slot
-        foreach ($newSlots as $slot) {
-            if (!$this->scheduleService->isSlotAvailable($fieldId, $date, $slot)) {
-                throw new \Exception("Sesi pada jam {$slot} tidak tersedia.");
-            }
-        }
-
         return DB::transaction(function () use ($booking, $fieldId, $date, $newSlots) {
+            foreach ($newSlots as $slot) {
+                if (!$this->scheduleService->isSlotAvailable($fieldId, $date, $slot)) {
+                    throw new \Exception("Sesi pada jam {$slot} tidak tersedia.");
+                }
+            }
             $sortedOldSchedules = $booking->schedules->sortBy(function ($schedule) {
                 return $schedule->date . ' ' . $schedule->start_time;
             })->values();
@@ -501,10 +493,6 @@ class BookingService
             if (now()->diffInHours($scheduleDateTime, false) < 2) {
                 throw new \Exception('Cancellation can only be requested up to 2 hours before the schedule starts.');
             }
-        }
-
-        if ($booking->status === 'cancelled') {
-            throw new \Exception('This booking has already been cancelled.');
         }
 
         if ($booking->status === 'pending' && $booking->booking_type === 'paid' && $booking->qr_id) {
@@ -596,60 +584,61 @@ class BookingService
 
     public function cleanupExpiredBookings(): void
     {
-        $expiredBookings = Booking::with('user')->where('status', 'pending')
-            ->where('expires_at', '<', now())
-            ->get();
+        DB::transaction(function () {
+            $expiredBookings = Booking::with('user')->where('status', 'pending')
+                ->where('expires_at', '<', now())
+                ->lockForUpdate()
+                ->get();
 
-        foreach ($expiredBookings as $booking) {
-            DB::transaction(function () use ($booking) {
+            foreach ($expiredBookings as $booking) {
                 $booking->transitionTo('expired');
-            });
 
-            // Kirim notifikasi
-            $message = $booking->booking_type === 'paid'
-                ? 'Your booking payment has expired.'
-                : 'Your booking request has expired because it was not verified by admin within 2 hours.';
+                $message = $booking->booking_type === 'paid'
+                    ? 'Your booking payment has expired.'
+                    : 'Your booking request has expired because it was not verified by admin within 2 hours.';
 
-            if ($booking->user) {
-                $booking->user->notify(new \App\Notifications\BookingNotification(
-                    'Booking Expired',
-                    $message,
-                    'warning',
-                    $booking->id
-                ));
-            }
-
-            // Catat log
-            ActivityLog::create([
-                'type' => 'danger',
-                'title' => 'Booking Expired',
-                'description' => "Booking {$booking->booking_number} has expired.",
-                'user_name' => $booking->user->name ?? 'System',
-                'user_id' => $booking->user_id,
-            ]);
-        }
-
-        // Sync pending paid bookings directly with Midtrans to release slots if payment has expired/failed in Midtrans
-        $pendingPaidBookings = Booking::where('status', 'pending')
-            ->where('booking_type', 'paid')
-            ->whereNotNull('qr_id')
-            ->get();
-
-        foreach ($pendingPaidBookings as $booking) {
-            try {
-                $midtransStatus = $this->midtransService->checkTransactionStatus($booking->qr_id);
-                if ($midtransStatus) {
-                    $transactionStatus = $midtransStatus->transaction_status ?? null;
-                    if (in_array($transactionStatus, ['cancel', 'deny', 'expire'])) {
-                        $this->failPaidBooking($booking, $transactionStatus);
-                    } else if ($transactionStatus == 'settlement' || ($transactionStatus == 'capture' && ($midtransStatus->fraud_status ?? null) == 'accept')) {
-                        $this->approvePaidBooking($booking);
-                    }
+                if ($booking->user) {
+                    $booking->user->notify(new \App\Notifications\BookingNotification(
+                        'Booking Expired',
+                        $message,
+                        'warning',
+                        $booking->id
+                    ));
                 }
-            } catch (\Exception $e) {
-                Log::error("Failed to sync Midtrans status for booking {$booking->id} during cleanup: " . $e->getMessage());
+
+                ActivityLog::create([
+                    'type' => 'danger',
+                    'title' => 'Booking Expired',
+                    'description' => "Booking {$booking->booking_number} has expired.",
+                    'user_name' => $booking->user->name ?? 'System',
+                    'user_id' => $booking->user_id,
+                ]);
             }
-        }
+        });
+
+        DB::transaction(function () {
+            $pendingPaidBookings = Booking::where('status', 'pending')
+                ->where('booking_type', 'paid')
+                ->whereNotNull('qr_id')
+                ->lockForUpdate()
+                ->get();
+
+            foreach ($pendingPaidBookings as $booking) {
+                try {
+                    $midtransStatus = $this->midtransService->checkTransactionStatus($booking->qr_id);
+                    if ($midtransStatus) {
+                        $transactionStatus = $midtransStatus->transaction_status ?? null;
+                        if (in_array($transactionStatus, ['cancel', 'deny', 'expire'])) {
+                            $this->failPaidBooking($booking, $transactionStatus);
+                        } else if ($transactionStatus == 'settlement' || ($transactionStatus == 'capture' && ($midtransStatus->fraud_status ?? null) == 'accept')) {
+                            $this->approvePaidBooking($booking);
+                        }
+                    }
+                } catch (\Exception $e) {
+                    Log::error("Failed to sync Midtrans status for booking {$booking->id} during cleanup: " . $e->getMessage());
+                }
+            }
+        });
     }
 
     public function triggerPendingRatingNotifications(User $user): void

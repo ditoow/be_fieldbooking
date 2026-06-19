@@ -64,10 +64,10 @@ class BookingController extends Controller
         try {
             $booking = $this->bookingService->getBookingById($id, $user);
             return new BookingResource($booking);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Booking not found'], 404);
         } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Booking not found',
-            ], 404);
+            return response()->json(['message' => $e->getMessage()], 422);
         }
     }
 

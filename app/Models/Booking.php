@@ -32,6 +32,7 @@ class Booking extends Model
         'attended_at' => 'datetime',
         'expires_at' => 'datetime',
         'total_price' => 'integer',
+        'is_attended' => 'boolean',
     ];
 
     public const TRANSITIONS = [
@@ -61,8 +62,7 @@ class Booking extends Model
 
         static::creating(function ($booking) {
             if (empty($booking->booking_number)) {
-                $nextId = (static::max('id') ?? 0) + 1;
-                $booking->booking_number = 'UGO-' . sprintf('%03d', $nextId) . '-' . now()->timestamp;
+                $booking->booking_number = 'UGO-' . strtoupper(substr(uniqid(), -6)) . '-' . now()->timestamp;
             }
         });
     }
@@ -91,7 +91,7 @@ class Booking extends Model
     {
         return \Illuminate\Database\Eloquent\Casts\Attribute::make(
             get: fn ($value) => is_null($value) ? null : (bool) $value,
-            set: fn ($value) => is_null($value) ? null : ($value ? '1' : '0')
+            set: fn ($value) => is_null($value) ? null : (bool) $value
         );
     }
 

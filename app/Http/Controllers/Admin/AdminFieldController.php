@@ -20,15 +20,18 @@ class AdminFieldController extends Controller
 
     public function storeField(StoreFieldRequest $request)
     {
-        $field = $this->fieldService->createField($request->validated());
+        $data = $request->validated();
+        $data['specifications'] = $request->input('specifications');
+        $field = $this->fieldService->createField($data);
         return new FieldResource($field);
     }
 
     public function updateField(UpdateFieldRequest $request, string $id)
     {
         $field = Field::findOrFail($id);
-
-        $updatedField = $this->fieldService->updateField($field, $request->validated());
+        $data = $request->validated();
+        $data['specifications'] = $request->input('specifications');
+        $updatedField = $this->fieldService->updateField($field, $data);
         return new FieldResource($updatedField);
     }
 

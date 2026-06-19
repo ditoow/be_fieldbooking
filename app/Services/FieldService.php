@@ -18,11 +18,27 @@ class FieldService
         $this->scheduleService = $scheduleService;
     }
 
+    protected function parseSpecifications(array $data): array
+    {
+        if (!isset($data['specifications'])) {
+            return $data;
+        }
+
+        if (is_string($data['specifications'])) {
+            $decoded = json_decode($data['specifications'], true);
+            $data['specifications'] = is_array($decoded) ? $decoded : [];
+        }
+
+        return $data;
+    }
+
     public function createField(array $data)
     {
         if (isset($data['image_file']) && $data['image_file']->isValid()) {
             $data['image_url'] = $this->uploadFoto($data['image_file'])['url'];
         }
+
+        $data = $this->parseSpecifications($data);
 
         return DB::transaction(function () use ($data) {
             $field = Field::create([
@@ -37,8 +53,17 @@ class FieldService
                 'rating' => $data['rating'] ?? 0.0,
                 'status' => $data['status'] ?? 'available',
                 'carousel_urls' => $data['carousel_urls'] ?? null,
-                'specifications' => $data['specifications'] ?? null,
             ]);
+
+            if (!empty($data['specifications'])) {
+                foreach ($data['specifications'] as $i => $spec) {
+                    $field->specifications()->create([
+                        'label' => $spec['label'],
+                        'value' => $spec['value'] ?? '',
+                        'sort_order' => $i,
+                    ]);
+                }
+            }
 
             return $field;
         });
@@ -46,7 +71,7 @@ class FieldService
 
     public function getAllFields($filters = [])
     {
-        $query = Field::with('detail');
+        $query = Field::with(['detail', 'specifications']);
 
         $query->when($filters['category'] ?? null, function ($q, $category){
             return $q->where('category', $category);
@@ -67,7 +92,7 @@ class FieldService
 
     public function getFieldById(int $id)
     {
-        $field = Field::with(['detail', 'schedules'])->findOrFail($id);
+        $field = Field::with(['detail', 'schedules', 'specifications'])->findOrFail($id);
         $field->price_min = config('pricing.before_16');
         $field->price_max = config('pricing.after_16');
         $field->available_slots_today = $this->countAvailableSlotsToday($id);
@@ -76,7 +101,7 @@ class FieldService
 
     public function getFieldByName(string $name, ?int $disambiguateId = null)
     {
-        $query = Field::with(['detail', 'schedules'])->whereRaw('LOWER(name) = ?', [strtolower($name)]);
+        $query = Field::with(['detail', 'schedules', 'specifications'])->whereRaw('LOWER(name) = ?', [strtolower($name)]);
 
         if ($disambiguateId) {
             $query->where('id', $disambiguateId);
@@ -109,6 +134,8 @@ class FieldService
 
     public function updateField(Field $field, array $data)
     {
+        $data = $this->parseSpecifications($data);
+
         return DB::transaction(function () use ($field, $data) {
             if (isset($data['image_file']) && $data['image_file']->isValid()) {
                 $data['image_url'] = $this->uploadFoto($data['image_file'])['url'];
@@ -119,12 +146,23 @@ class FieldService
                 $field->update($fieldData);
             }
 
-            $detailData = array_intersect_key($data, array_flip(['description', 'surface_type', 'rating', 'status', 'carousel_urls', 'specifications']));
+            $detailData = array_intersect_key($data, array_flip(['description', 'surface_type', 'rating', 'status', 'carousel_urls']));
             if (!empty($detailData)) {
                 $field->detail()->update($detailData);
             }
 
-            return $field->fresh('detail');
+            if (isset($data['specifications'])) {
+                $field->specifications()->delete();
+                foreach ($data['specifications'] as $i => $spec) {
+                    $field->specifications()->create([
+                        'label' => $spec['label'],
+                        'value' => $spec['value'] ?? '',
+                        'sort_order' => $i,
+                    ]);
+                }
+            }
+
+            return $field->fresh(['detail', 'specifications']);
         });
     }
 

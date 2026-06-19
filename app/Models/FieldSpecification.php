@@ -7,21 +7,15 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class DetailField extends Model
+class FieldSpecification extends Model
 {
-    protected $table = 'detail_fields';
+    protected $table = 'field_specifications';
 
     protected $fillable = [
         'field_id',
-        'description',
-        'surface_type',
-        'rating',
-        'status',
-        'carousel_urls',
-    ];
-
-    protected $casts = [
-        'carousel_urls' => 'array',
+        'label',
+        'value',
+        'sort_order',
     ];
 
     public function field(): BelongsTo

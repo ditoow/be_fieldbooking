@@ -138,8 +138,15 @@ class FieldSeeder extends Seeder
                 'rating' => $fieldData['rating'],
                 'status' => $fieldData['status'],
                 'carousel_urls' => $fieldData['carousel_urls'] ?? null,
-                'specifications' => $specifications,
             ]);
+
+            foreach ($specifications as $i => $spec) {
+                $field->specifications()->create([
+                    'label' => $spec['label'],
+                    'value' => $spec['value'],
+                    'sort_order' => $i,
+                ]);
+            }
         }
     }
 }

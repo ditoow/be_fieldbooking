@@ -33,6 +33,11 @@ class Field extends Model
         return $this->hasMany(Schedule::class, 'field_id');
     }
 
+    public function specifications(): HasMany
+    {
+        return $this->hasMany(FieldSpecification::class, 'field_id')->orderBy('sort_order');
+    }
+
     public function maintenances(): HasMany
     {
         return $this->hasMany(FieldMaintenance::class, 'field_id');
