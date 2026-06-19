@@ -52,8 +52,8 @@ class BookingResource extends JsonResource
             'qr_string' => $this->qr_string,
             'qr_image_url' => $this->qr_id ? "https://" . (config('services.midtrans.is_production') ? "api.midtrans.com" : "api.sandbox.midtrans.com") . "/v2/qris/" . $this->qr_id . "/qr-code" : null,
             'is_attended' => $this->is_attended,
-            'attended_at' => $this->attended_at?->toIso8601String(),
-            'expires_at' => $this->expires_at?->toIso8601String(),
+            'attended_at' => $this->attended_at ? Carbon::parse($this->attended_at)->toIso8601String() : null,
+            'expires_at' => $this->expires_at ? Carbon::parse($this->expires_at)->toIso8601String() : null,
             'is_reviewed' => $this->rating !== null,
             'field_name' => $fieldName,
             'field_image_url' => $fieldImageUrl,
@@ -62,7 +62,7 @@ class BookingResource extends JsonResource
             'formatted_time' => $formattedTime,
             'schedules' => ScheduleResource::collection($this->whenLoaded('schedules')),
             'user' => $this->whenLoaded('user', fn() => new UserResource($this->user)),
-            'created_at' => $this->created_at->toIso8601String(),
+            'created_at' => Carbon::parse($this->created_at)->toIso8601String(),
         ];
     }
 }

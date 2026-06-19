@@ -17,4 +17,13 @@ class UploadDocumentRequest extends FormRequest
             'file' => 'required|file|mimes:pdf|max:5120',
         ];
     }
+
+    public function messages(): array
+    {
+        return [
+            'file.required' => 'File wajib diunggah.',
+            'file.mimes' => 'File harus berupa PDF.',
+            'file.max' => 'Ukuran file maksimal 5MB.',
+        ];
+    }
 }

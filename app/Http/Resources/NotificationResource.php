@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Carbon\Carbon;
 
 class NotificationResource extends JsonResource
 {
@@ -15,8 +16,8 @@ class NotificationResource extends JsonResource
             'message' => $this->data['message'] ?? '',
             'type' => $this->data['type'] ?? 'info',
             'booking_id' => $this->data['booking_id'] ?? null,
-            'read_at' => $this->read_at ? $this->read_at->toIso8601String() : null,
-            'created_at' => $this->created_at->toIso8601String(),
+            'read_at' => $this->read_at ? Carbon::parse($this->read_at)->toIso8601String() : null,
+            'created_at' => Carbon::parse($this->created_at)->toIso8601String(),
             'time_ago' => $this->created_at->diffForHumans(),
         ];
     }

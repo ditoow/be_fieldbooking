@@ -20,6 +20,10 @@ class AuthController extends Controller
             $this->syncRoleByEmailSuffix($user);
         }
 
+        if ($user && $user->isSuspended()) {
+            return response()->json(['message' => 'Akun Anda telah ditangguhkan.'], 403);
+        }
+
         $credentials = $request->only('email', 'password');
 
         if (! $token = Auth::guard('api')->attempt($credentials)) {
@@ -92,15 +96,11 @@ class AuthController extends Controller
         }
     }
 
-    public function updateProfile(\Illuminate\Http\Request $request)
+    public function updateProfile(\App\Http\Requests\Auth\UpdateProfileRequest $request)
     {
         $user = Auth::guard('api')->user();
 
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
-            'phone' => 'nullable|string|max:20',
-        ]);
+        $validated = $request->validated();
 
         $user->update([
             'name' => $validated['name'],
@@ -118,23 +118,20 @@ class AuthController extends Controller
         ]);
     }
 
-    public function updatePassword(\Illuminate\Http\Request $request)
+    public function updatePassword(\App\Http\Requests\Auth\UpdatePasswordRequest $request)
     {
         $user = Auth::guard('api')->user();
 
-        $request->validate([
-            'current_password' => 'required|string',
-            'new_password' => ['required', 'confirmed', \Illuminate\Validation\Rules\Password::min(8)->letters()->numbers()],
-        ]);
+        $validated = $request->validated();
 
-        if (!Hash::check($request->current_password, $user->password)) {
+        if (!Hash::check($validated['current_password'], $user->password)) {
             return response()->json([
-                'message' => 'Password sekarang tidak cocok dengan data kami.'
+                'message' => 'Current password does not match our records.'
             ], 422);
         }
 
         $user->update([
-            'password' => Hash::make($request->new_password)
+            'password' => Hash::make($validated['password'])
         ]);
 
         return response()->json([

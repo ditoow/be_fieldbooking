@@ -10,6 +10,8 @@ use Illuminate\Database\Seeder;
 
 class BookingSeeder extends Seeder
 {
+    private int $bookingCounter = 137;
+
     public function run(): void
     {
         $mahasiswa = User::where('email', 'mhs@mhs.dinus.ac.id')->first();
@@ -20,19 +22,20 @@ class BookingSeeder extends Seeder
         }
 
         $scheduleMhs1 = Schedule::where('field_id', 1)
-            ->where('date', now()->addDay()->toDateString())
+            ->where('date', now()->subDay()->toDateString())
             ->where('start_time', '09:00:00')
             ->first();
 
         if ($scheduleMhs1) {
             $booking1 = Booking::create([
+                'booking_number' => 'UGO-' . sprintf('%03d', $this->bookingCounter++) . '-' . now()->timestamp,
                 'user_id' => $mahasiswa->id,
                 'status' => 'approved',
                 'booking_type' => 'requirement',
                 'total_price' => $scheduleMhs1->price,
                 'file_url' => 'https://qcizbglhafqgrphobbly.supabase.co/storage/v1/object/public/Field-Image/booking-files/dummy_persyaratan.pdf', 
                 'is_attended' => true,
-                'attended_at' => now()->addDay()->setHour(9)->setMinute(15), 
+                'attended_at' => now()->subDay()->setHour(9)->setMinute(15), 
                 'expires_at' => null,
             ]);
 
@@ -43,12 +46,13 @@ class BookingSeeder extends Seeder
         }
 
         $scheduleMhs2 = Schedule::where('field_id', 1)
-            ->where('date', now()->addDay()->toDateString())
+            ->where('date', now()->toDateString())
             ->where('start_time', '15:00:00')
             ->first();
 
         if ($scheduleMhs2) {
             $booking2 = Booking::create([
+                'booking_number' => 'UGO-' . sprintf('%03d', $this->bookingCounter++) . '-' . now()->timestamp,
                 'user_id' => $mahasiswa->id,
                 'status' => 'pending',
                 'booking_type' => 'requirement',
@@ -56,7 +60,7 @@ class BookingSeeder extends Seeder
                 'file_url' => null, 
                 'is_attended' => false,
                 'attended_at' => null,
-                'expires_at' => now()->addHours(2), 
+                'expires_at' => now()->addMinutes(10), 
             ]);
 
             BookingDetail::create([
@@ -66,12 +70,13 @@ class BookingSeeder extends Seeder
         }
 
         $scheduleUmum1 = Schedule::where('field_id', 2)
-            ->where('date', now()->addDay()->toDateString())
+            ->where('date', now()->toDateString())
             ->where('start_time', '19:00:00')
             ->first();
 
         if ($scheduleUmum1) {
             $booking3 = Booking::create([
+                'booking_number' => 'UGO-' . sprintf('%03d', $this->bookingCounter++) . '-' . now()->timestamp,
                 'user_id' => $umum->id,
                 'status' => 'approved',
                 'booking_type' => 'paid',

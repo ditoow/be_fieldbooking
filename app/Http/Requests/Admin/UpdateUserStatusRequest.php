@@ -17,4 +17,12 @@ class UpdateUserStatusRequest extends FormRequest
             'status' => 'required|in:active,suspended',
         ];
     }
+
+    public function messages(): array
+    {
+        return [
+            'status.required' => 'Status wajib diisi.',
+            'status.in' => 'Status harus active atau suspended.',
+        ];
+    }
 }

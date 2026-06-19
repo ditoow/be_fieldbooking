@@ -6,13 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Field;
 use App\Models\Rating;
-use Illuminate\Http\Request;
+use App\Http\Requests\Rating\StoreRatingRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class RatingController extends Controller
 {
-    public function store(Request $request, $bookingId)
+    public function store(StoreRatingRequest $request, $bookingId)
     {
         $user = Auth::guard('api')->user();
 
@@ -51,11 +51,7 @@ class RatingController extends Controller
             ], 422);
         }
 
-        // Validasi input
-        $validated = $request->validate([
-            'rating' => 'required|integer|min:1|max:5',
-            'review' => 'nullable|string|max:1000',
-        ]);
+        $validated = $request->validated();
 
         // Get field ID dari slot
         $fieldId = $lastSchedule->field_id;

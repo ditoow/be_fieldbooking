@@ -15,5 +15,14 @@ public function rules(): array {
         'category' => 'nullable|string',
         'status' => 'nullable|string|in:available,maintenance',
     ];
-}
+    }
+
+    public function messages(): array
+    {
+        return [
+            'category.string' => 'Format kategori tidak valid.',
+            'status.string' => 'Format status tidak valid.',
+            'status.in' => 'Status harus available atau maintenance.',
+        ];
+    }
 }

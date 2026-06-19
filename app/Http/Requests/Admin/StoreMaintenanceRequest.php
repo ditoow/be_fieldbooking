@@ -20,4 +20,16 @@ class StoreMaintenanceRequest extends FormRequest
             'reason' => 'nullable|string|max:255',
         ];
     }
+
+    public function messages(): array
+    {
+        return [
+            'date.required' => 'Tanggal wajib diisi.',
+            'date.after_or_equal' => 'Tanggal harus hari ini atau setelahnya.',
+            'start_time.date_format' => 'Format waktu mulai harus HH:mm.',
+            'end_time.date_format' => 'Format waktu selesai harus HH:mm.',
+            'end_time.after' => 'Waktu selesai harus setelah waktu mulai.',
+            'reason.max' => 'Alasan maksimal 255 karakter.',
+        ];
+    }
 }

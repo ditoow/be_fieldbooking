@@ -19,4 +19,14 @@ class IndexScheduleRequest extends FormRequest
             'end_date' => 'required|date|after_or_equal:start_date',
         ];
     }
+
+    public function messages(): array
+    {
+        return [
+            'field_id.required' => 'Lapangan wajib dipilih.',
+            'start_date.required' => 'Tanggal mulai wajib diisi.',
+            'end_date.required' => 'Tanggal selesai wajib diisi.',
+            'end_date.after_or_equal' => 'Tanggal selesai harus setelah atau sama dengan tanggal mulai.',
+        ];
+    }
 }

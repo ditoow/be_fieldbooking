@@ -26,4 +26,16 @@ class UpdateFieldRequest extends FormRequest
             'carousel_urls.*' => 'url',
         ];
     }
+
+    public function messages(): array
+    {
+        return [
+            'name.unique' => 'Nama lapangan sudah digunakan.',
+            'status.in' => 'Status harus available atau maintenance.',
+            'surface_type.in' => 'Tipe permukaan harus vinyl, parket, atau semen.',
+            'image_file.image' => 'File harus berupa gambar.',
+            'image_file.max' => 'Ukuran gambar maksimal 2MB.',
+            'carousel_urls.*.url' => 'Format URL carousel tidak valid.',
+        ];
+    }
 }

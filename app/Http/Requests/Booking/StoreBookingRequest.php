@@ -20,4 +20,16 @@ class StoreBookingRequest extends FormRequest
             'time_slots.*' => 'string|regex:/^\d{2}:00$/',
         ];
     }
+
+    public function messages(): array
+    {
+        return [
+            'field_id.required' => 'Lapangan wajib dipilih.',
+            'field_id.exists' => 'Lapangan tidak ditemukan.',
+            'date.required' => 'Tanggal wajib diisi.',
+            'date.after_or_equal' => 'Tanggal harus hari ini atau setelahnya.',
+            'time_slots.required' => 'Slot waktu wajib dipilih.',
+            'time_slots.*.regex' => 'Format slot waktu harus HH:00.',
+        ];
+    }
 }

@@ -29,6 +29,7 @@ class Booking extends Model
     ];
 
     protected $casts = [
+        'attended_at' => 'datetime',
         'expires_at' => 'datetime',
         'total_price' => 'integer',
     ];
@@ -61,7 +62,7 @@ class Booking extends Model
         static::creating(function ($booking) {
             if (empty($booking->booking_number)) {
                 $nextId = (static::max('id') ?? 0) + 1;
-                $booking->booking_number = 'UGO-' . now()->format('YmdHis') . '-' . sprintf('%04d', $nextId);
+                $booking->booking_number = 'UGO-' . sprintf('%03d', $nextId) . '-' . now()->timestamp;
             }
         });
     }

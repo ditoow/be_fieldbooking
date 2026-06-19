@@ -23,6 +23,7 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 CLAUDE.md
+AGENTS.md
 .agents/*
 .antigravitycli/*
 skills-lock.json

@@ -19,4 +19,16 @@ class RescheduleBookingRequest extends FormRequest
             'new_time_slot' => 'required|string|regex:/^\d{2}:00$/',
         ];
     }
+
+    public function messages(): array
+    {
+        return [
+            'field_id.required' => 'Lapangan wajib dipilih.',
+            'field_id.exists' => 'Lapangan tidak ditemukan.',
+            'date.required' => 'Tanggal wajib diisi.',
+            'date.after_or_equal' => 'Tanggal harus hari ini atau setelahnya.',
+            'new_time_slot.required' => 'Slot waktu baru wajib diisi.',
+            'new_time_slot.regex' => 'Format slot waktu harus HH:00.',
+        ];
+    }
 }
