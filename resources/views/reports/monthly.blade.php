@@ -103,7 +103,7 @@
   </div>
   <div class="meta">
     <p class="period">{{ $monthName }} {{ $year }}</p>
-    <p>Laporan Bulanan &middot; RPT-{{ $year }}{{ str_pad($month, 2, '0', STR_PAD_LEFT) }}</p>
+    <p>Laporan Bulanan &middot; RPT-{{ $year }}{{ $monthPadded }}</p>
     <p>Dicetak {{ now()->format('d F Y, H:i') }} WIB</p>
   </div>
 </div>

@@ -26,8 +26,6 @@ Route::get('/fields/{id}', [FieldController::class, 'show']);
 Route::get('/fields/{id}/ratings', [\App\Http\Controllers\Rating\RatingController::class, 'indexFieldRatings']);
 Route::get('/schedules', [ScheduleController::class, 'index']);
 
-Route::get('/admin/reports/pdf', [AdminReportController::class, 'exportPdf']);
-
 Route::middleware('auth:api')->group(function () {
 
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -42,7 +40,19 @@ Route::middleware('auth:api')->group(function () {
     Route::patch('/bookings/{id}/cancel', [BookingController::class, 'cancel']);
     Route::post('/bookings/{id}/rating', [\App\Http\Controllers\Rating\RatingController::class, 'store']);
 
+    Route::get('/user', function () {
+        return Auth::guard('api')->user()->load('roles');
+    });
+
+    Route::put('/user/profile', [AuthController::class, 'updateProfile']);
+    Route::put('/user/password', [AuthController::class, 'updatePassword']);
+
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::patch('/notifications/{id}/read', [NotificationController::class, 'read']);
+    Route::patch('/notifications/read-all', [NotificationController::class, 'readAll']);
+
     Route::middleware('role:admin')->group(function () {
+        Route::get('/admin/reports/pdf', [AdminReportController::class, 'exportPdf']);
         Route::post('/admin/fields', [AdminFieldController::class, 'storeField']);
         Route::patch('/admin/fields/{id}', [AdminFieldController::class, 'updateField']);
         Route::delete('/admin/fields/{id}', [AdminFieldController::class, 'destroyField']);
@@ -59,22 +69,10 @@ Route::middleware('auth:api')->group(function () {
         Route::get('/admin/reports/pdf-data', [AdminReportController::class, 'getPdfReportData']);
         Route::get('/admin/users', [AdminUserController::class, 'indexUsers']);
 
-        // Maintenance routes
         Route::get('/admin/fields/{id}/maintenances', [AdminMaintenanceController::class, 'index']);
         Route::post('/admin/fields/{id}/maintenances', [AdminMaintenanceController::class, 'store']);
         Route::delete('/admin/maintenances/{id}', [AdminMaintenanceController::class, 'destroy']);
 
         Route::post('/upload/foto', [FieldController::class, 'uploadFoto']);
     });
-
-    Route::get('/user', function () {
-        return Auth::guard('api')->user()->load('roles');
-    });
-
-    Route::put('/user/profile', [AuthController::class, 'updateProfile']);
-    Route::put('/user/password', [AuthController::class, 'updatePassword']);
-
-    Route::get('/notifications', [NotificationController::class, 'index']);
-    Route::patch('/notifications/{id}/read', [NotificationController::class, 'read']);
-    Route::patch('/notifications/read-all', [NotificationController::class, 'readAll']);
 });
