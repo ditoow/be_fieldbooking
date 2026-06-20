@@ -242,15 +242,14 @@ class AdminReportController extends Controller
 
     public function exportPdf(Request $request)
     {
-        $token = $request->query('token');
-        if ($token) {
-            try { auth()->guard('api')->setToken($token)->user(); }
-            catch (\Exception $e) { return response('Unauthorized', 401); }
-        } elseif (!auth()->guard('api')->user()) {
-            return response('Unauthorized', 401);
-        }
-        if (!auth()->guard('api')->user()?->hasRole('admin')) {
-            return response('Forbidden', 403);
+        if ($token = $request->query('token')) {
+            try {
+                auth()->guard('api')->setToken($token)->user();
+            } catch (\Exception $e) {
+                return response('Token tidak valid', 401);
+            }
+        } else {
+            return response('Token diperlukan', 401);
         }
 
         $month = $request->query('month', now()->month);
@@ -284,7 +283,18 @@ class AdminReportController extends Controller
             'status' => match($b->status) { 'approved' => 'BERHASIL', 'pending' => 'MENUNGGU', 'rejected', 'cancelled' => 'GAGAL', default => 'MENUNGGU' },
         ])->toArray();
 
-        return response()->view('reports.monthly', [
+        $statusCount = ['BERHASIL' => 0, 'MENUNGGU' => 0, 'GAGAL' => 0];
+        foreach ($pdfTransactions as $trx) { $statusCount[$trx['status']] = ($statusCount[$trx['status']] ?? 0) + 1; }
+        $successRate = count($pdfTransactions) > 0 ? round(($statusCount['BERHASIL'] ?? 0) / count($pdfTransactions) * 100) : null;
+
+        $topFacility = null; $lowFacility = null;
+        if (!empty($utilizationData)) {
+            $sorted = collect($utilizationData)->sortByDesc('rate')->values();
+            $topFacility = $sorted->first();
+            $lowFacility = $sorted->count() > 1 ? $sorted->last() : null;
+        }
+
+        $html = view('reports.monthly', [
             'month' => $month,
             'year' => $year,
             'monthName' => $monthName,
@@ -295,6 +305,11 @@ class AdminReportController extends Controller
             ],
             'utilization' => $utilizationData,
             'transactions' => $pdfTransactions,
+        ])->render();
+
+        return response($html, 200, [
+            'Content-Type' => 'text/html; charset=utf-8',
+            'Content-Disposition' => 'attachment; filename="laporan-myougo-' . $month . '-' . $year . '.html"',
         ]);
     }
 }
