@@ -239,4 +239,62 @@ class AdminReportController extends Controller
             ]
         ]);
     }
+
+    public function exportPdf(Request $request)
+    {
+        $token = $request->query('token');
+        if ($token) {
+            try { auth()->guard('api')->setToken($token)->user(); }
+            catch (\Exception $e) { return response('Unauthorized', 401); }
+        } elseif (!auth()->guard('api')->user()) {
+            return response('Unauthorized', 401);
+        }
+        if (!auth()->guard('api')->user()?->hasRole('admin')) {
+            return response('Forbidden', 403);
+        }
+
+        $month = $request->query('month', now()->month);
+        $year = $request->query('year', now()->year);
+        $monthName = Carbon::create($year, $month, 1)->translatedFormat('F');
+        $currentMonth = Carbon::create($year, $month, 1);
+        $lastMonth = $currentMonth->copy()->subMonth();
+
+        $currentMonthRevenue = Booking::where('status', 'approved')
+            ->whereMonth('created_at', $month)->whereYear('created_at', $year)->sum('total_price');
+
+        $totalBookingsCount = Booking::whereMonth('created_at', $month)->whereYear('created_at', $year)->count();
+        $activeUsersCount = Booking::whereMonth('created_at', $month)->whereYear('created_at', $year)->distinct('user_id')->count('user_id');
+
+        $fields = Field::all();
+        $utilizationData = [];
+        foreach ($fields as $field) {
+            $totalSlots = Schedule::where('field_id', $field->id)->whereMonth('date', $month)->whereYear('date', $year)->count();
+            $bookedSlots = Schedule::where('field_id', $field->id)->whereHas('bookings', fn($q) => $q->whereIn('status', ['pending', 'approved']))
+                ->whereMonth('date', $month)->whereYear('date', $year)->count();
+            $rate = $totalSlots > 0 ? round(($bookedSlots / $totalSlots) * 100) : 0;
+            $utilizationData[] = ['field_name' => $field->name, 'rate' => $rate];
+        }
+
+        $latestBookings = Booking::with(['schedules.field', 'user'])->orderBy('created_at', 'desc')->limit(10)->get();
+        $pdfTransactions = $latestBookings->map(fn($b) => [
+            'id' => $b->booking_number,
+            'user_detail' => $b->user->name ?? '-',
+            'service' => $b->schedules->first()?->field->name ?? '-',
+            'date' => $b->created_at->format('d/m/Y'),
+            'status' => match($b->status) { 'approved' => 'BERHASIL', 'pending' => 'MENUNGGU', 'rejected', 'cancelled' => 'GAGAL', default => 'MENUNGGU' },
+        ])->toArray();
+
+        return response()->view('reports.monthly', [
+            'month' => $month,
+            'year' => $year,
+            'monthName' => $monthName,
+            'summary' => [
+                'total_revenue' => $currentMonthRevenue,
+                'total_bookings' => $totalBookingsCount,
+                'active_users' => $activeUsersCount,
+            ],
+            'utilization' => $utilizationData,
+            'transactions' => $pdfTransactions,
+        ]);
+    }
 }

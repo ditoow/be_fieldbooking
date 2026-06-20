@@ -30,6 +30,8 @@ Route::middleware('auth:api')->group(function () {
 
     Route::post('/logout', [AuthController::class, 'logout']);
 
+    Route::post('/payment/simulate', [PaymentController::class, 'simulateSuccess']);
+
     Route::post('/bookings', [BookingController::class, 'store']);
     Route::get('/bookings', [BookingController::class, 'index']);
     Route::get('/bookings/{id}', [BookingController::class, 'show']);
@@ -38,7 +40,9 @@ Route::middleware('auth:api')->group(function () {
     Route::patch('/bookings/{id}/cancel', [BookingController::class, 'cancel']);
     Route::post('/bookings/{id}/rating', [\App\Http\Controllers\Rating\RatingController::class, 'store']);
 
-    Route::middleware('role:admin')->group(function () {
+Route::get('/admin/reports/pdf', [AdminReportController::class, 'exportPdf']);
+
+Route::middleware('role:admin')->group(function () {
         Route::post('/admin/fields', [AdminFieldController::class, 'storeField']);
         Route::patch('/admin/fields/{id}', [AdminFieldController::class, 'updateField']);
         Route::delete('/admin/fields/{id}', [AdminFieldController::class, 'destroyField']);

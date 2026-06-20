@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             ScheduleSeeder::class,
             BookingSeeder::class,
             NotificationSeeder::class,
+            RatingSeeder::class,
         ]);
     }
 }

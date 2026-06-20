@@ -75,4 +75,26 @@ class PaymentController extends Controller
             ], 500);
         }
     }
+
+    public function simulateSuccess(Request $request): JsonResponse
+    {
+        $booking = Booking::with(['schedules.field', 'user'])->find($request->booking_id);
+
+        if (!$booking) {
+            return response()->json(['message' => 'Booking not found'], 404);
+        }
+
+        if ($booking->status !== 'pending') {
+            return response()->json(['message' => 'Booking is not in pending status'], 422);
+        }
+
+        $this->bookingService->approvePaidBooking($booking);
+
+        Log::info("Payment simulated for booking ID {$booking->id}");
+
+        return response()->json([
+            'message' => 'Payment simulated successfully',
+            'data' => new \App\Http\Resources\BookingResource($booking->load(['schedules.field', 'user'])),
+        ]);
+    }
 }
