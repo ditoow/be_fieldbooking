@@ -7,6 +7,9 @@ use App\Models\Booking;
 use App\Models\Field;
 use App\Models\User;
 use App\Models\Schedule;
+use App\Services\SupabaseService;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Barryvdh\DomPDF\PDF as DomPdfWrapper;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Carbon\Carbon;
@@ -240,11 +243,12 @@ class AdminReportController extends Controller
         ]);
     }
 
-    public function exportPdf(Request $request)
+    public function exportPdf(Request $request, SupabaseService $supabase): JsonResponse
     {
         $month = $request->query('month', now()->month);
         $year = $request->query('year', now()->year);
         $monthName = \Carbon\Carbon::create($year, $month, 1)->translatedFormat('F');
+        $monthPadded = str_pad($month, 2, '0', STR_PAD_LEFT);
 
         $currentMonthRevenue = Booking::where('status', 'approved')
             ->whereMonth('created_at', $month)->whereYear('created_at', $year)->sum('total_price');
@@ -262,7 +266,7 @@ class AdminReportController extends Controller
         }
 
         $latestBookings = Booking::with(['schedules.field', 'user'])->orderBy('created_at', 'desc')->limit(10)->get();
-        $pdfTransactions = $latestBookings->map(fn($b) => [
+        $trx = $latestBookings->map(fn($b) => [
             'id' => $b->booking_number,
             'user_detail' => $b->user->name ?? '-',
             'service' => $b->schedules->first()?->field->name ?? '-',
@@ -270,53 +274,62 @@ class AdminReportController extends Controller
             'status' => match($b->status) { 'approved' => 'BERHASIL', 'pending' => 'MENUNGGU', 'rejected', 'cancelled' => 'GAGAL', default => 'MENUNGGU' },
         ])->toArray();
 
-        $html = '<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>Laporan MyUGO - ' . $monthName . ' ' . $year . '</title><style>
-  @page { margin: 22mm 18mm; } * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family:"Segoe UI",Arial,sans-serif; color:#1C2B1E; font-size:12px; line-height:1.6; background:#FBF9F4; padding:40px; }
-  h1 { font-size:26px; } h1 span { color:#B8865A; }
-  .header { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:28px; padding-bottom:20px; border-bottom:2px solid #1C2B1E; }
-  .meta { text-align:right; font-size:10px; color:#666; }
-  .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:28px; }
-  .stat-card { background:#fff; border:1px solid #e0e0e0; border-radius:8px; padding:18px; text-align:center; }
-  .stat-card .value { font-size:24px; font-weight:700; color:#1C2B1E; }
-  .stat-card .label { font-size:10px; text-transform:uppercase; color:#999; }
-  .section { margin-bottom:28px; }
-  .section h2 { font-size:14px; font-weight:600; color:#1C2B1E; margin-bottom:12px; padding-bottom:6px; border-bottom:1px solid #eee; }
-  table { width:100%; border-collapse:collapse; }
-  th { background:#1C2B1E; color:#fff; padding:10px 14px; text-align:left; font-size:10px; text-transform:uppercase; }
-  td { padding:10px 14px; border-bottom:1px solid #eee; font-size:11px; }
-  tr:nth-child(even) td { background:#F6F3EC; }
-  .badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:10px; font-weight:600; }
-  .badge-success { background:#d4edda; color:#155724; }
-  .badge-warning { background:#fff3cd; color:#856404; }
-  .badge-danger { background:#f8d7da; color:#721c24; }
-  .util-grid { margin-top:8px; }
-  .util-item { display:flex; align-items:center; gap:12px; margin-bottom:8px; }
-  .util-item .name { width:200px; font-weight:600; }
-  .util-item .bar-wrap { flex:1; height:14px; background:#eee; border-radius:10px; overflow:hidden; }
-  .util-item .bar { height:100%; border-radius:10px; background:linear-gradient(90deg,#2D6A4F,#D4A574); }
-  .util-item .rate { width:40px; text-align:right; font-weight:700; }
-  .footer { margin-top:36px; padding-top:18px; border-top:1px solid #ddd; display:flex; justify-content:space-between; font-size:10px; color:#999; }
-  .footer .ttd { text-align:right; margin-top:20px; }
-</style></head><body>
-<div class="header">
-  <div><h1>My<span>UGO</span></h1><p style="font-size:11px;color:#666;">Sistem Manajemen Fasilitas - Universitas Dian Nuswantoro</p></div>
-  <div class="meta"><p style="font-weight:700;font-size:13px;color:#1C2B1E;">' . $monthName . ' ' . $year . '</p><p>Laporan Bulanan &middot; RPT-' . $year . str_pad($month, 2, "0", STR_PAD_LEFT) . '</p><p>Dicetak ' . now()->format("d F Y, H:i") . ' WIB</p></div>
-</div>
-<div class="stats">
-  <div class="stat-card"><div class="label">Total Pendapatan</div><div class="value">Rp ' . number_format($currentMonthRevenue, 0, ",", ".") . '</div></div>
-  <div class="stat-card"><div class="label">Total Booking</div><div class="value">' . $totalBookingsCount . '</div></div>
-  <div class="stat-card"><div class="label">Pengguna Aktif</div><div class="value">' . $activeUsersCount . '</div></div>
-</div>
-' . (!empty($utilizationData) ? '<div class="section"><h2>Utilisasi Fasilitas</h2><div class="util-grid">' . implode("", array_map(fn($u) => '<div class="util-item"><span class="name">' . $u["field_name"] . '</span><div class="bar-wrap"><div class="bar" style="width:' . $u["rate"] . '%"></div></div><span class="rate">' . $u["rate"] . '%</span></div>', $utilizationData)) . '</div></div>' : '') . '
-<div class="section"><h2>Transaksi Terbaru</h2><table><thead><tr><th>ID</th><th>Pengguna</th><th>Layanan</th><th>Tanggal</th><th>Status</th></tr></thead><tbody>' . (count($pdfTransactions) > 0 ? implode("", array_map(fn($t) => '<tr><td style="font-family:monospace">' . $t["id"] . '</td><td>' . $t["user_detail"] . '</td><td>' . $t["service"] . '</td><td>' . $t["date"] . '</td><td><span class="badge badge-' . ($t["status"] === "BERHASIL" ? "success" : ($t["status"] === "MENUNGGU" ? "warning" : "danger")) . '">' . $t["status"] . '</span></td></tr>', $pdfTransactions)) : '<tr><td colspan="5" style="text-align:center;padding:24px;color:#999;">Belum ada transaksi bulan ini.</td></tr>') . '</tbody></table></div>
-<div class="footer">
-  <div><p>Dokumen internal - tidak untuk disebarluaskan.</p><p>Disusun oleh tim Operasional MyUGO, Universitas Dian Nuswantoro.</p></div>
-  <div class="ttd"><p>Semarang, ' . now()->format("d F Y") . '</p><p style="margin-top:40px;border-top:1px solid #999;padding-top:5px;width:170px;display:inline-block;font-weight:600;color:#1C2B1E;">Administrator</p></div>
-</div>
-<script>window.print();</script>
-</body></html>';
+        $data = [
+            'monthName' => $monthName,
+            'year' => $year,
+            'monthPadded' => $monthPadded,
+            'summary' => [
+                'total_revenue' => $currentMonthRevenue,
+                'total_bookings' => $totalBookingsCount,
+                'active_users' => $activeUsersCount,
+            ],
+            'utilization' => $utilizationData,
+            'transactions' => $trx,
+            'adminNote' => '',
+        ];
 
-        return response($html, 200, ['Content-Type' => 'text/html; charset=utf-8']);
+        $dompdf = app('dompdf.wrapper');
+        $dompdf->loadView('reports.monthly', $data);
+
+        $fontDir = storage_path('fonts');
+        $fontMetrics = $dompdf->getDomPDF()->getFontMetrics();
+        $fontMetrics->registerFont(
+            ['family' => 'Poppins', 'style' => 'normal', 'weight' => '400'],
+            $fontDir . '/Poppins-Regular.ttf'
+        );
+        $fontMetrics->registerFont(
+            ['family' => 'Poppins', 'style' => 'normal', 'weight' => '500'],
+            $fontDir . '/Poppins-Medium.ttf'
+        );
+        $fontMetrics->registerFont(
+            ['family' => 'Poppins', 'style' => 'normal', 'weight' => '600'],
+            $fontDir . '/Poppins-SemiBold.ttf'
+        );
+        $fontMetrics->registerFont(
+            ['family' => 'Poppins', 'style' => 'normal', 'weight' => '700'],
+            $fontDir . '/Poppins-Bold.ttf'
+        );
+        $fontMetrics->registerFont(
+            ['family' => 'Poppins', 'style' => 'italic', 'weight' => '400'],
+            $fontDir . '/Poppins-Italic.ttf'
+        );
+
+        $pdfBinary = $dompdf->output();
+
+        $timestamp = now()->format('Ymd_His');
+        $storagePath = "reports/laporan-bulanan-{$month}-{$year}-{$timestamp}.pdf";
+
+        $url = $supabase->upload(
+            file: null,
+            storagePath: $storagePath,
+            mimeType: 'application/pdf',
+            binaryContent: $pdfBinary,
+            bucket: config('supabase.bucket_report', 'reports'),
+        );
+
+        return response()->json([
+            'success' => true,
+            'url' => $url,
+        ]);
     }
 }
