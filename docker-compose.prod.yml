@@ -1,0 +1,120 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ghcr.io/ditoow/be_fieldbooking:latest
+    container_name: fieldbooking-app
+    restart: unless-stopped
+    environment:
+      APP_ENV: production
+      APP_DEBUG: false
+      APP_KEY: ${APP_KEY}
+      APP_URL: https://api-fieldbooking.ditooow.online
+      DB_CONNECTION: supabase
+      SUPABASE_DB_HOST: ${SUPABASE_DB_HOST}
+      SUPABASE_DB_PORT: ${SUPABASE_DB_PORT:-6543}
+      SUPABASE_DB_DATABASE: ${SUPABASE_DB_DATABASE:-postgres}
+      SUPABASE_DB_USERNAME: ${SUPABASE_DB_USERNAME:-postgres}
+      SUPABASE_DB_PASSWORD: ${SUPABASE_DB_PASSWORD}
+      QUEUE_CONNECTION: database
+      CACHE_STORE: database
+      SESSION_DRIVER: database
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_TTL: 3600
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_KEY: ${SUPABASE_KEY}
+      SUPABASE_BUCKET_IMAGE: ${SUPABASE_BUCKET_IMAGE:-Field-Image}
+      SUPABASE_BUCKET_DOCUMENT: ${SUPABASE_BUCKET_DOCUMENT:-File-Document}
+    volumes:
+      - app-storage:/var/www/html/storage
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.fieldbooking.rule=Host(`api-fieldbooking.ditooow.online`)"
+      - "traefik.http.routers.fieldbooking.entrypoints=https"
+      - "traefik.http.routers.fieldbooking.tls=true"
+      - "traefik.http.routers.fieldbooking.tls.certresolver=letsencrypt"
+      - "traefik.http.services.fieldbooking.loadbalancer.server.port=3000"
+    networks:
+      - coolify
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ghcr.io/ditoow/be_fieldbooking:latest
+    container_name: fieldbooking-worker
+    restart: unless-stopped
+    command: php artisan queue:work --queue=default --sleep=3 --tries=3 --max-time=3600
+    environment:
+      APP_ENV: production
+      APP_DEBUG: false
+      APP_KEY: ${APP_KEY}
+      APP_URL: https://api-fieldbooking.ditooow.online
+      DB_CONNECTION: supabase
+      SUPABASE_DB_HOST: ${SUPABASE_DB_HOST}
+      SUPABASE_DB_PORT: ${SUPABASE_DB_PORT:-6543}
+      SUPABASE_DB_DATABASE: ${SUPABASE_DB_DATABASE:-postgres}
+      SUPABASE_DB_USERNAME: ${SUPABASE_DB_USERNAME:-postgres}
+      SUPABASE_DB_PASSWORD: ${SUPABASE_DB_PASSWORD}
+      QUEUE_CONNECTION: database
+      CACHE_STORE: database
+      SESSION_DRIVER: database
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_TTL: 3600
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_KEY: ${SUPABASE_KEY}
+    volumes:
+      - app-storage:/var/www/html/storage
+    networks:
+      - coolify
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ghcr.io/ditoow/be_fieldbooking:latest
+    container_name: fieldbooking-scheduler
+    restart: unless-stopped
+    command: php artisan schedule:work
+    environment:
+      APP_ENV: production
+      APP_DEBUG: false
+      APP_KEY: ${APP_KEY}
+      APP_URL: https://api-fieldbooking.ditooow.online
+      DB_CONNECTION: supabase
+      SUPABASE_DB_HOST: ${SUPABASE_DB_HOST}
+      SUPABASE_DB_PORT: ${SUPABASE_DB_PORT:-6543}
+      SUPABASE_DB_DATABASE: ${SUPABASE_DB_DATABASE:-postgres}
+      SUPABASE_DB_USERNAME: ${SUPABASE_DB_USERNAME:-postgres}
+      SUPABASE_DB_PASSWORD: ${SUPABASE_DB_PASSWORD}
+      QUEUE_CONNECTION: database
+      CACHE_STORE: database
+      SESSION_DRIVER: database
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_TTL: 3600
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_KEY: ${SUPABASE_KEY}
+    volumes:
+      - app-storage:/var/www/html/storage
+    networks:
+      - coolify
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: fieldbooking-tunnel
+    restart: unless-stopped
+    command: tunnel --config /etc/cloudflared/config.yml run
+    volumes:
+      - /etc/cloudflared:/etc/cloudflared:ro
+    networks:
+      - coolify
+
+volumes:
+  app-storage:
+    driver: local
+
+networks:
+  coolify:
+    external: true
+    name: coolify
