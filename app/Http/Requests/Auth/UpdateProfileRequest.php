@@ -16,10 +16,10 @@ class UpdateProfileRequest extends FormRequest
     {
         $userId = Auth::id();
         return [
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users,email,' . $userId,
-            'phone' => 'nullable|string|regex:/^(08|\+62)[0-9]{8,13}$/',
-            'student_id' => 'nullable|string|max:30',
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,' . $userId],
+            'phone' => ['nullable', 'string', 'regex:/^(08|\+62)[0-9]{8,13}$/'],
+            'student_id' => ['nullable', 'string', 'max:30'],
         ];
     }
 
