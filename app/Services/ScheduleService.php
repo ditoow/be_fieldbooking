@@ -17,6 +17,19 @@ class ScheduleService
     {
         $field = Field::with('detail')->findOrFail($fieldId);
 
+        if ($field->status === 'maintenance') {
+            $slots = [];
+            for ($hour = 6; $hour < 24; $hour++) {
+                $slots[] = [
+                    'start_time' => sprintf('%02d:00', $hour),
+                    'end_time' => sprintf('%02d:00', $hour + 1),
+                    'price' => ($hour >= 16) ? config('pricing.after_16') : config('pricing.before_16'),
+                    'status' => 'maintenance',
+                ];
+            }
+            return $slots;
+        }
+
         // Cek apakah tanggal ini full day maintenance
         $isFullDayMaintenance = FieldMaintenance::query()->where('field_id', $fieldId)
             ->where('date', $date)
@@ -87,6 +100,11 @@ class ScheduleService
      */
     public function isSlotAvailable(int $fieldId, string $date, string $startTime): bool
     {
+        $field = Field::find($fieldId);
+        if ($field && $field->status === 'maintenance') {
+            return false;
+        }
+
         // Cek full day maintenance
         $isFullDayMaintenance = FieldMaintenance::query()->where('field_id', $fieldId)
             ->where('date', $date)
@@ -130,6 +148,11 @@ class ScheduleService
     public function createScheduleForBooking(int $fieldId, string $date, string $startTime): Schedule
     {
         $hour = (int) substr($startTime, 0, 2);
+
+        $field = Field::find($fieldId);
+        if ($field && $field->status === 'maintenance') {
+            throw new \Exception("Field is currently under maintenance. Booking is not allowed.");
+        }
 
         // Cek maintenance (tidak perlu lock karena jarang berubah)
         $isMaintenance = FieldMaintenance::query()->where('field_id', $fieldId)
