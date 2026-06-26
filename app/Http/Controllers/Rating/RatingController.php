@@ -78,10 +78,14 @@ class RatingController extends Controller
         });
 
         $user->notifications()
-            ->whereRaw("data->>'booking_id' = ?", [(string) $booking->id])
-            ->whereRaw("data->>'type' = ?", ['rating_reminder'])
             ->whereNull('read_at')
-            ->update(['read_at' => now()]);
+            ->get()
+            ->filter(function ($n) use ($booking) {
+                $data = $n->data;
+                return ($data['booking_id'] ?? null) == $booking->id
+                    && ($data['type'] ?? null) === 'rating_reminder';
+            })
+            ->each->markAsRead();
 
         return response()->json([
             'message' => 'Rating dan ulasan Anda berhasil dikirim!'
