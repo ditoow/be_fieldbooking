@@ -683,8 +683,8 @@ class BookingService
                 $endDateTime = \Carbon\Carbon::parse($lastSchedule->date . ' ' . $lastSchedule->end_time);
                 if (now()->gt($endDateTime)) {
                     $notificationExists = $user->notifications()
-                        ->where('data->booking_id', $booking->id)
-                        ->where('data->type', 'rating_reminder')
+                        ->whereRaw("data->>'booking_id' = ?", [(string) $booking->id])
+                        ->whereRaw("data->>'type' = ?", ['rating_reminder'])
                         ->exists();
 
                     if (!$notificationExists) {

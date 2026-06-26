@@ -78,8 +78,8 @@ class RatingController extends Controller
         });
 
         $user->notifications()
-            ->where('data->booking_id', $booking->id)
-            ->where('data->type', 'rating_reminder')
+            ->whereRaw("data->>'booking_id' = ?", [(string) $booking->id])
+            ->whereRaw("data->>'type' = ?", ['rating_reminder'])
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
 
