@@ -22,10 +22,10 @@ class RatingSeeder extends Seeder
             'Sayang jadwalnya sering penuh, harus booking jauh2 hari.',
         ];
 
-        $approved = Booking::where('status', 'approved')->get();
+        $approved = Booking::where('status', 'approved')->limit(50)->get();
 
-        if ($approved->isEmpty()) {
-            $this->command->info('Tidak ada booking approved — RatingSeeder dilewati.');
+        if ($approved->count() < 50) {
+            $this->command->info('Tidak cukup booking approved untuk membuat 50 rating — RatingSeeder dilewati.');
             return;
         }
 

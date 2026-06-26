@@ -8,6 +8,7 @@ use App\Services\BookingService;
 use App\Services\MidtransService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 class PaymentController extends Controller
@@ -78,7 +79,9 @@ class PaymentController extends Controller
 
     public function simulateSuccess(Request $request): JsonResponse
     {
-        $booking = Booking::with(['schedules.field', 'user'])->find($request->booking_id);
+        $booking = Booking::with(['schedules.field', 'user'])
+            ->where('user_id', Auth::id())
+            ->find($request->booking_id);
 
         if (!$booking) {
             return response()->json(['message' => 'Booking not found'], 404);

@@ -9,7 +9,12 @@ class ScheduleSeeder extends Seeder
 {
     public function run(): void
     {
-        $dates = [now()->subDay(), now(), now()->addDay()];
+        $dates = [];
+        for ($i = 7; $i >= 1; $i--) {
+            $dates[] = now()->subDays($i);
+        }
+        $dates[] = now();
+        $dates[] = now()->addDay();
 
         $slotsByField = [
             1 => [

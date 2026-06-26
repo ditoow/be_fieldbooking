@@ -77,16 +77,11 @@ class RatingController extends Controller
             }
         });
 
-        // Tandai notifikasi pengingat rating sebagai terbaca
-        $user->unreadNotifications
-            ->filter(function ($notification) use ($booking) {
-                $data = $notification->data;
-                return isset($data['booking_id']) && $data['booking_id'] == $booking->id
-                    && isset($data['type']) && $data['type'] === 'rating_reminder';
-            })
-            ->each(function ($notification) {
-                $notification->markAsRead();
-            });
+        $user->notifications()
+            ->where('data->booking_id', $booking->id)
+            ->where('data->type', 'rating_reminder')
+            ->whereNull('read_at')
+            ->update(['read_at' => now()]);
 
         return response()->json([
             'message' => 'Rating dan ulasan Anda berhasil dikirim!'

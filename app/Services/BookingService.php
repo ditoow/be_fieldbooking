@@ -12,21 +12,25 @@ use Illuminate\Support\Facades\DB;
 use App\Models\ActivityLog;
 use App\Models\Media;
 use Illuminate\Support\Facades\Log;
+use App\Services\BookingQuotaService;
 
 class BookingService
 {
     protected SupabaseService $supabaseService;
     protected MidtransService $midtransService;
     protected ScheduleService $scheduleService;
+    protected BookingQuotaService $quotaService;
 
     public function __construct(
         SupabaseService $supabaseService,
         MidtransService $midtransService,
-        ScheduleService $scheduleService
+        ScheduleService $scheduleService,
+        BookingQuotaService $quotaService
     ) {
         $this->supabaseService = $supabaseService;
         $this->midtransService = $midtransService;
         $this->scheduleService = $scheduleService;
+        $this->quotaService = $quotaService;
     }
 
     public function createBooking(User $user, int $fieldId, string $date, array $timeSlots)
@@ -51,9 +55,8 @@ class BookingService
             throw new \Exception('User must have role mahasiswa or umum');
         }
 
-        if ($isMahasiswa && count($timeSlots) > 3) {
-            throw new \Exception('Students can only book a maximum of 3 hours per booking.');
-        }
+        // Assert weekly booking quota
+        $this->quotaService->assertWithinQuota($user, count($timeSlots));
 
         // Hitung total harga
         $totalPrice = 0;
@@ -115,6 +118,16 @@ class BookingService
             'user_name' => $user->name,
             'user_id' => $user->id,
         ]);
+
+        $adminUsers = User::role('admin')->get();
+        foreach ($adminUsers as $admin) {
+            $admin->notify(new \App\Notifications\BookingNotification(
+                'Booking Baru',
+                "Booking {$booking->booking_number} oleh {$user->name} pada {$date} menunggu tindakan.",
+                'info',
+                $booking->id
+            ));
+        }
 
         return $booking;
     }
@@ -507,6 +520,13 @@ class BookingService
             'user_id' => $user->id,
         ]);
 
+        $user->notify(new \App\Notifications\BookingNotification(
+            'Booking Dibatalkan',
+            "Booking {$booking->booking_number} telah dibatalkan.",
+            'warning',
+            $booking->id
+        ));
+
         return DB::transaction(function () use ($booking) {
             $booking->transitionTo('cancelled');
             return $booking;
@@ -620,6 +640,7 @@ class BookingService
             $pendingPaidBookings = Booking::where('status', 'pending')
                 ->where('booking_type', 'paid')
                 ->whereNotNull('qr_id')
+                ->where('expires_at', '<', now())
                 ->lockForUpdate()
                 ->get();
 
@@ -657,12 +678,10 @@ class BookingService
             if ($lastSchedule) {
                 $endDateTime = \Carbon\Carbon::parse($lastSchedule->date . ' ' . $lastSchedule->end_time);
                 if (now()->gt($endDateTime)) {
-                    $notificationExists = $user->notifications
-                        ->contains(function ($notification) use ($booking) {
-                            $data = $notification->data;
-                            return isset($data['booking_id']) && $data['booking_id'] == $booking->id
-                                && isset($data['type']) && $data['type'] === 'rating_reminder';
-                        });
+                    $notificationExists = $user->notifications()
+                        ->where('data->booking_id', $booking->id)
+                        ->where('data->type', 'rating_reminder')
+                        ->exists();
 
                     if (!$notificationExists) {
                         $user->notify(new \App\Notifications\BookingNotification(

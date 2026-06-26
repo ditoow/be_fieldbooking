@@ -87,13 +87,7 @@ class Booking extends Model
         return $this->hasOne(Rating::class, 'booking_id');
     }
 
-    protected function isAttended(): \Illuminate\Database\Eloquent\Casts\Attribute
-    {
-        return \Illuminate\Database\Eloquent\Casts\Attribute::make(
-            get: fn ($value) => is_null($value) ? null : (bool) $value,
-            set: fn ($value) => is_null($value) ? null : (bool) $value
-        );
-    }
+
 
     public function scopePending(\Illuminate\Database\Eloquent\Builder $query)
     {

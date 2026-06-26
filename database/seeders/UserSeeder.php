@@ -2,8 +2,10 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
+use Faker\Factory as Faker;
 
 class UserSeeder extends Seeder
 {
@@ -12,55 +14,80 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        $admin = \App\Models\User::create([
+        $faker = Faker::create('id_ID');
+
+        // 1. Admin (1 user)
+        $admin = User::create([
             'name' => 'pulung',
             'email' => 'admin@admin.com',
-            'password' => \Illuminate\Support\Facades\Hash::make('password'),
+            'password' => Hash::make('password'),
             'phone' => '+6281234567890',
             'student_id' => null,
         ]);
         $admin->assignRole('admin');
 
-        // --- Umum Users ---
-
-        $umumUsers = [
+        // 2. Umum Users (Total 25)
+        $hardcodedUmum = [
             ['name' => 'fajar', 'email' => 'umum@umum.com', 'password' => 'umumuser', 'phone' => '+6281234567891'],
             ['name' => 'budi santoso', 'email' => 'budi@gmail.com', 'password' => 'password', 'phone' => '+6281345678901'],
             ['name' => 'rina wati', 'email' => 'rina@gmail.com', 'password' => 'password', 'phone' => '+6281456789012'],
             ['name' => 'deni prasetyo', 'email' => 'deni@gmail.com', 'password' => 'password', 'phone' => '+6281567890123'],
         ];
 
-        foreach ($umumUsers as $data) {
-            $user = \App\Models\User::create([
+        foreach ($hardcodedUmum as $data) {
+            $user = User::create([
                 'name' => $data['name'],
                 'email' => $data['email'],
-                'password' => \Illuminate\Support\Facades\Hash::make($data['password']),
+                'password' => Hash::make($data['password']),
                 'phone' => $data['phone'],
                 'student_id' => null,
             ]);
             $user->assignRole('umum');
-            $user->update(['user_number' => \App\Models\User::generateUserNumber('umum')]);
+            $user->update(['user_number' => User::generateUserNumber('umum')]);
         }
 
-        // --- Mahasiswa Users ---
+        for ($i = 0; $i < 21; $i++) {
+            $user = User::create([
+                'name' => strtolower($faker->name),
+                'email' => $faker->unique()->safeEmail,
+                'password' => Hash::make('password'),
+                'phone' => '+628' . $faker->numerify('##########'),
+                'student_id' => null,
+            ]);
+            $user->assignRole('umum');
+            $user->update(['user_number' => User::generateUserNumber('umum')]);
+        }
 
-        $mahasiswaUsers = [
+        // 3. Mahasiswa Users (Total 25)
+        $hardcodedMhs = [
             ['name' => 'aprilian', 'email' => 'mhs@mhs.dinus.ac.id', 'password' => 'mahasiswa', 'phone' => '+6281298765432', 'student_id' => 'A11.2023.01042'],
             ['name' => 'aditya saputra', 'email' => 'aditya@mhs.dinus.ac.id', 'password' => 'password', 'phone' => '+6281678901234', 'student_id' => 'A11.2023.01050'],
             ['name' => 'sari dewi', 'email' => 'sari@mhs.dinus.ac.id', 'password' => 'password', 'phone' => '+6281789012345', 'student_id' => 'A11.2023.01055'],
             ['name' => 'rizky maulana', 'email' => 'rizky@mhs.dinus.ac.id', 'password' => 'password', 'phone' => '+6281890123456', 'student_id' => 'A11.2023.01063'],
         ];
 
-        foreach ($mahasiswaUsers as $data) {
-            $user = \App\Models\User::create([
+        foreach ($hardcodedMhs as $data) {
+            $user = User::create([
                 'name' => $data['name'],
                 'email' => $data['email'],
-                'password' => \Illuminate\Support\Facades\Hash::make($data['password']),
+                'password' => Hash::make($data['password']),
                 'phone' => $data['phone'],
                 'student_id' => $data['student_id'],
             ]);
             $user->assignRole('mahasiswa');
-            $user->update(['user_number' => \App\Models\User::generateUserNumber('mahasiswa')]);
+            $user->update(['user_number' => User::generateUserNumber('mahasiswa')]);
+        }
+
+        for ($i = 0; $i < 21; $i++) {
+            $user = User::create([
+                'name' => strtolower($faker->name),
+                'email' => $faker->unique()->safeEmail,
+                'password' => Hash::make('password'),
+                'phone' => '+628' . $faker->numerify('##########'),
+                'student_id' => 'A11.2023.' . $faker->unique()->numerify('#####'),
+            ]);
+            $user->assignRole('mahasiswa');
+            $user->update(['user_number' => User::generateUserNumber('mahasiswa')]);
         }
     }
 }

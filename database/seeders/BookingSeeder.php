@@ -7,81 +7,136 @@ use App\Models\BookingDetail;
 use App\Models\Schedule;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class BookingSeeder extends Seeder
 {
-    private int $bookingCounter = 137;
+    private int $bookingCounter = 100;
 
+    /**
+     * Run the database seeds.
+     */
     public function run(): void
     {
         $mahasiswaUsers = User::role('mahasiswa')->get();
         $umumUsers = User::role('umum')->get();
+        $allUsers = $mahasiswaUsers->concat($umumUsers)->shuffle();
 
-        $mhsMap = [
-            ['field_id' => 1, 'yesterday_start' => '09:00', 'today_start' => '10:00', 'today_status' => 'pending'],
-            ['field_id' => 2, 'yesterday_start' => '09:00', 'today_start' => '10:00', 'today_status' => 'pending'],
-            ['field_id' => 3, 'yesterday_start' => '08:00', 'today_start' => '09:00', 'today_status' => 'approved'],
-            ['field_id' => 4, 'yesterday_start' => '07:00', 'today_start' => '08:00', 'today_status' => 'approved'],
-        ];
+        $todayStr = now()->toDateString();
 
-        $umumMap = [
-            ['field_id' => 5, 'yesterday_start' => '06:00', 'today_start' => '07:00', 'today_status' => 'pending'],
-            ['field_id' => 1, 'yesterday_start' => '14:00', 'today_start' => '15:00', 'today_status' => 'approved'],
-            ['field_id' => 2, 'yesterday_start' => '14:00', 'today_start' => '16:00', 'today_status' => 'pending'],
-            ['field_id' => 3, 'yesterday_start' => '15:00', 'today_start' => '16:00', 'today_status' => 'approved'],
-        ];
+        // Historical schedules (date < today)
+        $pastSchedules = Schedule::where('date', '<', $todayStr)->get()->shuffle();
+        // Future/current schedules (date >= today)
+        $futureSchedules = Schedule::where('date', '>=', $todayStr)->get()->shuffle();
 
-        foreach ($mahasiswaUsers as $i => $user) {
-            $config = $mhsMap[$i % count($mhsMap)];
-            $this->createBookingPair($user, 'requirement', $config, true);
+        // Check that we have enough schedules
+        if ($pastSchedules->count() < 60 || $futureSchedules->count() < 25) {
+            $this->command->warn('Not enough schedules to generate 75 bookings. Seeding default schedules first.');
+            return;
         }
 
-        foreach ($umumUsers as $i => $user) {
-            $config = $umumMap[$i % count($umumMap)];
-            $this->createBookingPair($user, 'paid', $config, false);
-        }
-    }
+        $userIndex = 0;
 
-    private function createBookingPair(User $user, string $bookingType, array $config, bool $hasFileUrl): void
-    {
-        $scheduleYesterday = Schedule::where('field_id', $config['field_id'])
-            ->where('date', now()->subDay()->toDateString())
-            ->where('start_time', $config['yesterday_start'] . ':00')
-            ->first();
+        // 1. 50 Completed bookings (approved + attended, in the past)
+        for ($i = 0; $i < 50; $i++) {
+            $schedule = $pastSchedules->pop();
+            $user = $allUsers[$userIndex++ % $allUsers->count()];
+            
+            $startParts = explode(':', $schedule->start_time);
+            $attendedAt = Carbon::parse($schedule->date)
+                ->setHour((int)$startParts[0])
+                ->setMinute((int)$startParts[1] + 15)
+                ->setSecond(0);
 
-        if ($scheduleYesterday) {
-            $startParts = explode(':', $config['yesterday_start']);
-            $attendedAt = now()->subDay()->setHour((int) $startParts[0])->setMinute((int) $startParts[1] + 15)->setSecond(0);
-
-            $this->createBooking($user, $bookingType, $scheduleYesterday, [
+            $this->createBookingRecord($user, $schedule, [
                 'status' => 'approved',
-                'is_attended' => true,
+                'is_attended' => DB::raw('true'),
                 'attended_at' => $attendedAt,
                 'expires_at' => null,
-                'file_url' => $hasFileUrl
+                'file_url' => $user->hasRole('mahasiswa')
                     ? 'https://qcizbglhafqgrphobbly.supabase.co/storage/v1/object/public/Field-Image/booking-files/dummy_persyaratan.pdf'
                     : null,
             ]);
         }
 
-        $scheduleToday = Schedule::where('field_id', $config['field_id'])
-            ->where('date', now()->toDateString())
-            ->where('start_time', $config['today_start'] . ':00')
-            ->first();
+        // 2. 10 Upcoming Approved bookings (approved + not attended, today/tomorrow)
+        for ($i = 0; $i < 10; $i++) {
+            $schedule = $futureSchedules->pop();
+            $user = $allUsers[$userIndex++ % $allUsers->count()];
 
-        if ($scheduleToday) {
-            $this->createBooking($user, $bookingType, $scheduleToday, [
-                'status' => $config['today_status'],
-                'is_attended' => false,
+            $this->createBookingRecord($user, $schedule, [
+                'status' => 'approved',
+                'is_attended' => DB::raw('false'),
                 'attended_at' => null,
-                'expires_at' => $config['today_status'] === 'pending' ? now()->addMinutes(10) : null,
+                'expires_at' => null,
                 'file_url' => null,
             ]);
         }
+
+        // 3. 5 Pending bookings (today/tomorrow)
+        for ($i = 0; $i < 5; $i++) {
+            $schedule = $futureSchedules->pop();
+            $user = $allUsers[$userIndex++ % $allUsers->count()];
+
+            $this->createBookingRecord($user, $schedule, [
+                'status' => 'pending',
+                'is_attended' => DB::raw('false'),
+                'attended_at' => null,
+                'expires_at' => now()->addMinutes(10),
+                'file_url' => null,
+            ]);
+        }
+
+        // 4. 4 Cancelled bookings
+        for ($i = 0; $i < 4; $i++) {
+            $schedule = $pastSchedules->pop();
+            $user = $allUsers[$userIndex++ % $allUsers->count()];
+
+            $this->createBookingRecord($user, $schedule, [
+                'status' => 'cancelled',
+                'is_attended' => DB::raw('false'),
+                'attended_at' => null,
+                'expires_at' => null,
+                'file_url' => null,
+            ]);
+        }
+
+        // 5. 3 Rejected bookings
+        for ($i = 0; $i < 3; $i++) {
+            $schedule = $pastSchedules->pop();
+            $user = $allUsers[$userIndex++ % $allUsers->count()];
+
+            $this->createBookingRecord($user, $schedule, [
+                'status' => 'rejected',
+                'is_attended' => DB::raw('false'),
+                'attended_at' => null,
+                'expires_at' => null,
+                'file_url' => null,
+            ]);
+        }
+
+        // 6. 3 Expired bookings
+        for ($i = 0; $i < 3; $i++) {
+            $schedule = $pastSchedules->pop();
+            $user = $allUsers[$userIndex++ % $allUsers->count()];
+
+            $this->createBookingRecord($user, $schedule, [
+                'status' => 'expired',
+                'is_attended' => DB::raw('false'),
+                'attended_at' => null,
+                'expires_at' => null,
+                'file_url' => null,
+            ]);
+        }
+
+        $this->command->info('BookingSeeder: 75 bookings successfully seeded.');
     }
 
-    private function createBooking(User $user, string $bookingType, Schedule $schedule, array $data): void
+    private function createBookingRecord(User $user, Schedule $schedule, array $data): void
     {
+        $bookingType = $user->hasRole('mahasiswa') ? 'requirement' : 'paid';
+
         $booking = Booking::create([
             'booking_number' => 'UGO-' . sprintf('%03d', $this->bookingCounter++) . '-' . now()->timestamp,
             'user_id' => $user->id,

@@ -44,8 +44,8 @@ Route::middleware('auth:api')->group(function () {
         return Auth::guard('api')->user()->load('roles');
     });
 
-    Route::put('/user/profile', [AuthController::class, 'updateProfile']);
-    Route::put('/user/password', [AuthController::class, 'updatePassword']);
+    Route::match(['put', 'post'], '/user/profile', [AuthController::class, 'updateProfile']);
+    Route::match(['put', 'post'], '/user/password', [AuthController::class, 'updatePassword']);
 
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::patch('/notifications/{id}/read', [NotificationController::class, 'read']);
