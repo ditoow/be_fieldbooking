@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Field\FieldController;
 use App\Http\Controllers\Schedule\ScheduleController;
 use App\Http\Controllers\Booking\BookingController;
@@ -19,6 +20,8 @@ use Illuminate\Support\Facades\Auth;
 
 Route::post('register', [AuthController::class, 'register'])->middleware('throttle:auth');
 Route::post('login', [AuthController::class, 'login'])->middleware('throttle:auth');
+Route::post('forgot-password', [PasswordResetController::class, 'sendResetLinkEmail'])->middleware('throttle:auth');
+Route::post('reset-password', [PasswordResetController::class, 'resetPassword'])->middleware('throttle:auth');
 Route::post('/payment/midtrans-callback', [PaymentController::class, 'handleWebhook'])->middleware('throttle:20,1');
 
 Route::get('/fields', [FieldController::class, 'index']);

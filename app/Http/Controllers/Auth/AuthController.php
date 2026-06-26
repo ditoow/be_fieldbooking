@@ -113,8 +113,6 @@ class AuthController extends Controller
             'phone' => $validated['phone'],
         ]);
 
-        $this->syncRoleByEmailSuffix($user);
-
         $user->load('roles');
 
         return response()->json([

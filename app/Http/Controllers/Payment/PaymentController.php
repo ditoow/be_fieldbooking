@@ -10,6 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use App\Http\Requests\Payment\SimulateSuccessRequest;
 
 class PaymentController extends Controller
 {
@@ -77,11 +78,12 @@ class PaymentController extends Controller
         }
     }
 
-    public function simulateSuccess(Request $request): JsonResponse
+    public function simulateSuccess(SimulateSuccessRequest $request): JsonResponse
     {
+        $validated = $request->validated();
         $booking = Booking::with(['schedules.field', 'user'])
             ->where('user_id', Auth::id())
-            ->find($request->booking_id);
+            ->find($validated['booking_id']);
 
         if (!$booking) {
             return response()->json(['message' => 'Booking not found'], 404);
