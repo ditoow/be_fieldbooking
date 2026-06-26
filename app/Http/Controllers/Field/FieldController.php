@@ -6,6 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Field\IndexFieldRequest;
 use App\Http\Requests\Field\UploadFotoRequest;
 use App\Http\Resources\FieldResource;
+use App\Models\Booking;
+use App\Models\Field;
+use App\Models\Rating;
+use App\Models\User;
 use App\Services\FieldService;
 
 class FieldController extends Controller
@@ -20,7 +24,18 @@ class FieldController extends Controller
     public function index(IndexFieldRequest $request) {
         $filters = $request->validated(); 
         $fields = $this->fieldService->getAllFields($filters);
-        return FieldResource::collection($fields);
+
+        $avgRating = Rating::avg('rating');
+        $satisfactionRate = $avgRating ? round(($avgRating / 5) * 100) : null;
+
+        $stats = [
+            'total_bookings' => Booking::count(),
+            'total_fields' => Field::count(),
+            'active_users' => User::count(),
+            'satisfaction_rate' => $satisfactionRate,
+        ];
+
+        return FieldResource::collection($fields)->additional(['meta' => ['stats' => $stats]]);
     }
 
     public function show(int $id)
