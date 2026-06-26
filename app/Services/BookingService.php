@@ -65,6 +65,10 @@ class BookingService
             $totalPrice += ($hour >= 16) ? config('pricing.after_16') : config('pricing.before_16');
         }
 
+        if ($isMahasiswa) {
+            $totalPrice = 0;
+        }
+
         $booking = DB::transaction(function () use ($user, $fieldId, $date, $timeSlots, $isMahasiswa, $isUmum, $totalPrice) {
             $booking = Booking::create([
                 'user_id' => $user->id,
@@ -380,7 +384,7 @@ class BookingService
         }
 
         $booking->update([
-            'is_attended' => true,
+            'is_attended' => DB::raw('true'),
             'attended_at' => now(),
         ]);
 
