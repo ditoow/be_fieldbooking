@@ -9,6 +9,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Trigger cPanel deploy webhook
-        run: |
-          curl -s -X POST ${{ secrets.DEPLOY_WEBHOOK_URL }}
+      - name: Deploy to cPanel via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: 194.15.36.113
+          username: myugocom
+          key: ${{ secrets.CPANEL_SSH_KEY }}
+          script: |
+            cd /home/myugocom/be_fieldbooking
+            git pull origin production
