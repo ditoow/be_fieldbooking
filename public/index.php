@@ -1,20 +1,35 @@
 <?php
 
-use Illuminate\Foundation\Application;
-use Illuminate\Http\Request;
-
-define('LARAVEL_START', microtime(true));
-
-// Determine if the application is in maintenance mode...
-if (file_exists($maintenance = __DIR__.'/../storage/framework/maintenance.php')) {
-    require $maintenance;
+namespace Symfony\Component\HttpFoundation {
+    if (!\function_exists('Symfony\Component\HttpFoundation\request_parse_body')) {
+        function request_parse_body(?string $contentType = null): array
+        {
+            $data = [];
+            if ($contentType === null) {
+                $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+            }
+            if (str_contains($contentType, 'application/x-www-form-urlencoded') || str_contains($contentType, 'multipart/form-data')) {
+                parse_str(file_get_contents('php://input'), $data);
+            }
+            return [$data, []];
+        }
+    }
 }
 
-// Register the Composer autoloader...
-require __DIR__.'/../vendor/autoload.php';
+namespace {
+    use Illuminate\Foundation\Application;
+    use Illuminate\Http\Request;
 
-// Bootstrap Laravel and handle the request...
-/** @var Application $app */
-$app = require_once __DIR__.'/../bootstrap/app.php';
+    define('LARAVEL_START', microtime(true));
 
-$app->handleRequest(Request::capture());
+    if (file_exists($maintenance = __DIR__.'/../storage/framework/maintenance.php')) {
+        require $maintenance;
+    }
+
+    require __DIR__.'/../vendor/autoload.php';
+
+    /** @var Application $app */
+    $app = require_once __DIR__.'/../bootstrap/app.php';
+
+    $app->handleRequest(Request::capture());
+}
