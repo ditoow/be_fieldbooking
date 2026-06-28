@@ -113,6 +113,24 @@ class BookingController extends Controller
         }
     }
 
+    public function notifyPayment(int $id)
+    {
+        $user = Auth::guard('api')->user();
+
+        try {
+            $booking = $this->bookingService->sendPaymentNotification($id, $user);
+
+            return response()->json([
+                'message' => 'Payment notification sent',
+                'data' => new BookingResource($booking->load(['schedules.field', 'user'])),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
     public function cancel(int $id)
     {
         $user = Auth::guard('api')->user();
