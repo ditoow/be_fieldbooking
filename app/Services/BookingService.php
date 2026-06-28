@@ -107,16 +107,6 @@ class BookingService
             'user_id' => $user->id,
         ]);
 
-        $adminUsers = User::role('admin')->get();
-        foreach ($adminUsers as $admin) {
-            $admin->notify(new \App\Notifications\BookingNotification(
-                'Booking Baru',
-                "Booking {$booking->booking_number} oleh {$user->name} pada {$date} menunggu tindakan.",
-                'info',
-                $booking->id
-            ));
-        }
-
         return $booking;
     }
 
@@ -239,6 +229,16 @@ class BookingService
             'bucket' => config('supabase.bucket_document', 'File-Document'),
             'url' => $result['url'],
         ]);
+
+        $adminUsers = User::role('admin')->get();
+        foreach ($adminUsers as $admin) {
+            $admin->notify(new \App\Notifications\BookingNotification(
+                'Dokumen Diunggah',
+                "Mahasiswa {$booking->user->name} telah mengunggah dokumen Surat TU untuk pesanan {$booking->booking_number}. Mohon segera diverifikasi.",
+                'info',
+                $booking->id
+            ));
+        }
 
         return $booking;
     }
@@ -580,6 +580,16 @@ class BookingService
             'success',
             $booking->id
         ));
+
+        $adminUsers = User::role('admin')->get();
+        foreach ($adminUsers as $admin) {
+            $admin->notify(new \App\Notifications\BookingNotification(
+                'Pembayaran Masuk',
+                "Pembayaran pesanan {$booking->booking_number} oleh {$booking->user->name} telah berhasil/masuk.",
+                'success',
+                $booking->id
+            ));
+        }
 
         ActivityLog::create([
             'type' => 'success',
