@@ -99,22 +99,6 @@ class BookingService
             return $booking;
         });
 
-        if ($isUmum) {
-            $booking->load('schedules.field');
-            $firstSchedule = $booking->schedules->sortBy('start_time')->first();
-            $lastSchedule = $booking->schedules->sortBy('start_time')->last();
-            $fieldName = $firstSchedule->field->name ?? 'Field';
-            $startTime = $firstSchedule ? date('H:i', strtotime($firstSchedule->start_time)) : '';
-            $endTime = $lastSchedule ? date('H:i', strtotime($lastSchedule->end_time)) : '';
-
-            $user->notify(new \App\Notifications\BookingNotification(
-                'Waiting for Payment',
-                "Booking {$fieldName} at {$startTime} - {$endTime} has been created. Please complete your payment.",
-                'info',
-                $booking->id
-            ));
-        }
-
         ActivityLog::create([
             'type' => 'info',
             'title' => 'New Booking',
@@ -132,6 +116,28 @@ class BookingService
                 $booking->id
             ));
         }
+
+        return $booking;
+    }
+
+    public function sendPaymentNotification($bookingId, User $user)
+    {
+        $booking = Booking::with('schedules.field')
+            ->where('user_id', $user->id)
+            ->findOrFail($bookingId);
+
+        $firstSchedule = $booking->schedules->sortBy('start_time')->first();
+        $lastSchedule = $booking->schedules->sortBy('start_time')->last();
+        $fieldName = $firstSchedule->field->name ?? 'Field';
+        $startTime = $firstSchedule ? date('H:i', strtotime($firstSchedule->start_time)) : '';
+        $endTime = $lastSchedule ? date('H:i', strtotime($lastSchedule->end_time)) : '';
+
+        $user->notify(new \App\Notifications\BookingNotification(
+            'Waiting for Payment',
+            "Booking {$fieldName} at {$startTime} - {$endTime} has been created. Please complete your payment.",
+            'info',
+            $booking->id
+        ));
 
         return $booking;
     }
@@ -492,39 +498,49 @@ class BookingService
 
     public function cancelBooking(User $user, int $bookingId)
     {
-        $booking = Booking::with('schedules')->where('id', $bookingId)->where('user_id', $user->id)->firstOrFail();
+        $query = Booking::with(['schedules', 'user']);
 
-        $isMahasiswa = $user->hasRole('mahasiswa');
-        $isUmum = $user->hasRole('umum');
+        $isAdmin = $user->hasRole('admin');
 
-        if (!$isMahasiswa && !$isUmum) {
-            throw new \Exception('Your account does not have permission to cancel bookings.');
+        if ($isAdmin) {
+            $booking = $query->findOrFail($bookingId);
+        } else {
+            $booking = $query->where('user_id', $user->id)->findOrFail($bookingId);
+
+            $isMahasiswa = $user->hasRole('mahasiswa');
+            $isUmum = $user->hasRole('umum');
+
+            if (!$isMahasiswa && !$isUmum) {
+                throw new \Exception('Your account does not have permission to cancel bookings.');
+            }
+
+            foreach ($booking->schedules as $schedule) {
+                $scheduleDateTime = \Carbon\Carbon::parse($schedule->date . ' ' . $schedule->start_time);
+                if (now()->diffInHours($scheduleDateTime, false) < 2) {
+                    throw new \Exception('Cancellation can only be requested up to 2 hours before the schedule starts.');
+                }
+            }
         }
 
         if (!in_array($booking->status, ['pending', 'approved'])) {
             throw new \Exception('Only active bookings can be cancelled.');
         }
 
-        foreach ($booking->schedules as $schedule) {
-            $scheduleDateTime = \Carbon\Carbon::parse($schedule->date . ' ' . $schedule->start_time);
-            if (now()->diffInHours($scheduleDateTime, false) < 2) {
-                throw new \Exception('Cancellation can only be requested up to 2 hours before the schedule starts.');
-            }
-        }
-
         if ($booking->status === 'pending' && $booking->booking_type === 'paid' && $booking->qr_id) {
             $this->midtransService->cancelTransaction($booking->qr_id);
         }
 
+        $cancelledBy = $isAdmin ? 'admin' : 'user';
+
         ActivityLog::create([
             'type' => 'warning',
             'title' => 'Cancellation',
-            'description' => "Booking {$booking->booking_number} was cancelled by the user.",
+            'description' => "Booking {$booking->booking_number} was cancelled by the {$cancelledBy}.",
             'user_name' => $user->name,
             'user_id' => $user->id,
         ]);
 
-        $user->notify(new \App\Notifications\BookingNotification(
+        $booking->user->notify(new \App\Notifications\BookingNotification(
             'Booking Dibatalkan',
             "Booking {$booking->booking_number} telah dibatalkan.",
             'warning',

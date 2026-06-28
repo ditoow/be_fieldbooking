@@ -39,6 +39,7 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/bookings', [BookingController::class, 'index']);
     Route::get('/bookings/{id}', [BookingController::class, 'show']);
     Route::post('/bookings/{id}/upload', [BookingController::class, 'upload']);
+    Route::post('/bookings/{id}/notify-payment', [BookingController::class, 'notifyPayment']);
     Route::patch('/bookings/{id}/reschedule', [BookingController::class, 'reschedule']);
     Route::patch('/bookings/{id}/cancel', [BookingController::class, 'cancel']);
     Route::post('/bookings/{id}/rating', [\App\Http\Controllers\Rating\RatingController::class, 'store']);
@@ -63,6 +64,7 @@ Route::middleware('auth:api')->group(function () {
         Route::patch('/admin/bookings/{id}/approve', [AdminBookingController::class, 'approveBooking']);
         Route::patch('/admin/bookings/{id}/reject', [AdminBookingController::class, 'rejectBooking']);
         Route::patch('/admin/bookings/{id}/attend', [AdminBookingController::class, 'attendBooking']);
+        Route::patch('/admin/bookings/{id}/cancel', [\App\Http\Controllers\Booking\BookingController::class, 'cancel']);
         Route::patch('/admin/users/{id}/status', [AdminUserController::class, 'updateUserStatus']);
         Route::get('/admin/stats', [AdminStatsController::class, 'getStats']);
         Route::get('/admin/stats/revenue-trend', [AdminStatsController::class, 'getRevenueTrend']);
