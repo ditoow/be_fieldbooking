@@ -26,21 +26,20 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Carbon::setLocale('en');
+        Carbon::setLocale("en");
 
-        RateLimiter::for('api', function (Request $request) {
-            return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+        RateLimiter::for("api", function (Request $request) {
+            return Limit::perMinute(60)->by(
+                $request->user()?->id ?: $request->ip(),
+            );
         });
 
-        RateLimiter::for('auth', function (Request $request) {
+        RateLimiter::for("auth", function (Request $request) {
             return Limit::perMinute(10)->by($request->ip());
         });
 
         Scramble::afterOpenApiGenerated(function (OpenApi $openApi) {
-        $openApi->secure(
-            SecurityScheme::http('bearer', 'JWT')
-        );
-    });
+            $openApi->secure(SecurityScheme::http("bearer", "JWT"));
+        });
     }
 }
-
