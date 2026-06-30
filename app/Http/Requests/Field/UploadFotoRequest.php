@@ -14,7 +14,7 @@ class UploadFotoRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'foto' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'foto' => 'required|file|extensions:jpg,jpeg,png,webp|max:5120',
         ];
     }
 
@@ -22,8 +22,7 @@ class UploadFotoRequest extends FormRequest
     {
         return [
             'foto.required' => 'Foto wajib diunggah.',
-            'foto.image' => 'File harus berupa gambar.',
-            'foto.mimes' => 'Format foto harus jpg, jpeg, png, atau webp.',
+            'foto.extensions' => 'Format foto harus jpg, jpeg, png, atau webp.',
             'foto.max' => 'Ukuran foto maksimal 5MB.',
         ];
     }

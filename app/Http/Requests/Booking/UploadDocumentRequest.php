@@ -14,7 +14,7 @@ class UploadDocumentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'file' => 'required|file|mimes:pdf|max:5120',
+            'file' => 'required|file|extensions:pdf|max:5120',
         ];
     }
 
@@ -22,7 +22,7 @@ class UploadDocumentRequest extends FormRequest
     {
         return [
             'file.required' => 'File wajib diunggah.',
-            'file.mimes' => 'File harus berupa PDF.',
+            'file.extensions' => 'File harus berupa PDF.',
             'file.max' => 'Ukuran file maksimal 5MB.',
         ];
     }

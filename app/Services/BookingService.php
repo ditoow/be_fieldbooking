@@ -217,6 +217,12 @@ class BookingService
             'expires_at' => now()->addHours(2),
         ]);
 
+        try {
+            $mimeType = $file->getMimeType();
+        } catch (\Exception $e) {
+            $mimeType = 'application/octet-stream';
+        }
+
         Media::create([
             'user_id' => $booking->user_id,
             'model_type' => Booking::class,
@@ -224,7 +230,7 @@ class BookingService
             'collection_name' => 'booking_document',
             'original_name' => $file->getClientOriginalName(),
             'stored_path' => $result['stored_path'],
-            'mime_type' => $file->getMimeType(),
+            'mime_type' => $mimeType,
             'file_size' => $file->getSize(),
             'bucket' => config('supabase.bucket_document', 'File-Document'),
             'url' => $result['url'],
